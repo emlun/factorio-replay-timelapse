@@ -1,7 +1,6 @@
 local tick_per_s = 60
 local speedup = 300
 local framerate = 30
-local nth_tick = tick_per_s * speedup / framerate
 local tile_size_px = 32
 local shrink_threshold = 0.75
 local shrink_delay_s = 3
@@ -18,6 +17,7 @@ local screenshot_filename_pattern = output_dir .. "/%08d-replay.png"
 local research_progress_filename = output_dir .. "/research-progress.txt"
 local research_finished_filename = output_dir .. "/research-finish.txt"
 
+local nth_tick = tick_per_s * speedup / framerate
 local recently_built_ticks = recently_built_seconds * tick_per_s * speedup
 local margin_expansion_factor = 1 + (margin_fraction / (1 - margin_fraction))
 local shrink_delay_ticks = shrink_delay_s * tick_per_s * speedup
