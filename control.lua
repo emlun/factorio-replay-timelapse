@@ -160,45 +160,31 @@ function pan_camera_to_cover_bbox(camera, bbox)
     local bbox_h = bbox.b - bbox.t
     local camera_w = cbb.r - cbb.l
     local camera_h = cbb.b - cbb.t
-    log("panning: camera: " .. serpent.line(camera))
-    log("panning: camera bbox: " .. serpent.line(cbb))
-    log("panning: target bbox: " .. serpent.line(bbox))
 
     if camera_w < bbox_w then
       camera = translate_camera(
         camera,
         { x = (bbox.r + bbox.l) / 2 - camera.position.x, y = 0 }
       )
-      log("panning: camera not wide enough")
     elseif bbox.l < cbb.l then
       camera = translate_camera(camera, { x = bbox.l - cbb.l, y = 0 })
-      log("panning: camera panned left")
     elseif bbox.r > cbb.r then
       camera = translate_camera(camera, { x = bbox.r - cbb.r, y = 0 })
-      log("panning: camera panned right")
     end
 
     cbb = camera_bbox(camera)
-    log("panning: 2nd camera: " .. serpent.line(camera))
-    log("panning: 2nd camera bbox: " .. serpent.line(cbb))
 
     if camera_h < bbox_h then
       camera = translate_camera(
         camera,
         { x = 0, y = (bbox.b + bbox.t) / 2 - camera.position.y }
       )
-      log("panning: camera not tall enough")
     elseif bbox.t < cbb.t then
       camera = translate_camera(camera, { x = 0, y = bbox.t - cbb.t })
-      log("panning: camera panned up")
     elseif bbox.b > cbb.b then
       camera = translate_camera(camera, { x = 0, y = bbox.b - cbb.b })
-      log("panning: camera panned down")
     end
   end
-
-  log("panning: result camera: " .. serpent.line(camera))
-  log("panning: result camera bbox: " .. serpent.line(camera_bbox(camera)))
 
   return camera
 end
@@ -216,7 +202,6 @@ function run()
   script.on_nth_tick(
     nth_tick,
     function(event)
-      log("current bbox: " .. serpent.line(bbox))
 
       local base_bb = base_bbox()
       local expanded_bbox = expand_bbox(bbox, base_bb)
@@ -232,9 +217,6 @@ function run()
         shrink_start_camera = nil
       end
       bbox = lerp_bbox(bbox, expanded_bbox, base_bbox_lerp_step)
-
-      log("base bbox: " .. serpent.line(base_bb))
-      log("expanded bbox: " .. serpent.line(expanded_bbox))
 
       if base_bb.l ~= nil then
         local bbox_w = bbox.r - bbox.l
@@ -273,8 +255,6 @@ function run()
         end
       else
         if target_camera.desired_zoom < min_zoom then
-          log("desired zoom too low: " .. target_camera.desired_zoom .. " actual zoom: " .. target_camera.zoom)
-
           local recent_bbox = bbox_union_flattened(recently_built_bboxes)
           target_camera = pan_camera_to_cover_bbox(
             {
@@ -284,11 +264,6 @@ function run()
             },
             marginize_bbox(recent_bbox)
           )
-
-          log("recent bbox: " .. serpent.line(recent_bbox))
-          log("current camera bbox: " .. serpent.line(camera_bbox(current_camera)))
-          log("target camera bbox: " .. serpent.line(camera_bbox(target_camera)))
-
         end
 
         current_camera = lerp_camera(current_camera, target_camera, camera_lerp_step)
