@@ -7,16 +7,22 @@ local shrink_threshold = 0.75
 local shrink_delay_s = 3
 local shrink_time_s = 2
 local margin_fraction = 0.05
-local min_zoom = 0.03125
+local min_zoom = 0.03125 * 4  -- Minimum allowed by game is 0.03125
 local resolution = {x = 1920, y = 1080}
+local recently_built_seconds = 2
+local base_bbox_lerp_step = 1
+local camera_lerp_step = 0.35
 
 local output_dir = "replay-timelapse"
 local screenshot_filename_pattern = output_dir .. "/%08d-replay.png"
 local research_progress_filename = output_dir .. "/research-progress.txt"
 local research_finished_filename = output_dir .. "/research-finish.txt"
 
+local recently_built_ticks = recently_built_seconds * tick_per_s * speedup
+local margin_expansion_factor = 1 + (margin_fraction / (1 - margin_fraction))
 local shrink_delay_ticks = shrink_delay_s * tick_per_s * speedup
 local shrink_time_ticks = shrink_time_s * tick_per_s * speedup
+
 
 function entity_bbox(entity)
   return {
@@ -46,8 +52,30 @@ function lerp_bbox(bbox_a, bbox_b, t)
   }
 end
 
-function sirp_bbox(bbox_a, bbox_b, t)
-  return lerp_bbox(bbox_a, bbox_b, (math.sin((t - 0.5) * math.pi) + 1) / 2)
+function sirp(t)
+  return (math.sin((t - 0.5) * math.pi) + 1) / 2
+end
+
+function lerp_camera(camera_a, camera_b, t)
+  local s = 1 - t
+  return {
+    position = {
+      x = s * camera_a.position.x + t * camera_b.position.x,
+      y = s * camera_a.position.y + t * camera_b.position.y,
+    },
+    zoom = s * camera_a.zoom + t * camera_b.zoom,
+    desired_zoom = camera_b.desired_zoom,
+  }
+end
+
+function bbox_union_flattened(bboxess)
+  local result = {}
+  for _, bboxes in ipairs(bboxess) do
+    for _, bbox in ipairs(bboxes) do
+      result = expand_bbox(bbox, result)
+    end
+  end
+  return result
 end
 
 function base_bbox()
@@ -61,9 +89,8 @@ function base_bbox()
   return result
 end
 
-function compute_camera(bbox, resolution, margin_fraction)
+function compute_camera(bbox)
   local center = { x = (bbox.l + bbox.r) / 2, y = (bbox.t + bbox.b) / 2 }
-  local aspect_ratio = 16/9
 
   local w_tile = bbox.r - bbox.l
   local h_tile = bbox.b - bbox.t
@@ -71,31 +98,120 @@ function compute_camera(bbox, resolution, margin_fraction)
   local w_px = w_tile * tile_size_px
   local h_px = h_tile * tile_size_px
 
-  local margin_expansion_factor = margin_fraction / (1 - margin_fraction)
+  local w_margin_px = w_px * margin_expansion_factor
+  local h_margin_px = h_px * margin_expansion_factor
 
-  local w_margin_px = w_px + w_px * margin_expansion_factor
-  local h_margin_px = h_px + h_px * margin_expansion_factor
-
-  local zoom = math.min(1, resolution.x / w_margin_px, resolution.y / h_margin_px)
+  local desired_zoom = math.min(1, resolution.x / w_margin_px, resolution.y / h_margin_px)
+  local zoom = math.max(desired_zoom, min_zoom)
 
   return {
     position = center,
-    resolution = resolution,
     zoom = zoom,
+    desired_zoom = desired_zoom,
   }
+end
+
+function translate_camera(camera, dxy)
+  return {
+    position = {
+      x = camera.position.x + dxy.x,
+      y = camera.position.y + dxy.y,
+    },
+    zoom = camera.zoom,
+    desired_zoom = camera.desired_zoom,
+  }
+end
+
+function marginize_bbox(bbox)
+  local x = (bbox.r + bbox.l) / 2
+  local y = (bbox.b + bbox.t) / 2
+  local w = bbox.r - bbox.l
+  local h = bbox.b - bbox.t
+
+  local f = 2 / margin_expansion_factor
+  return {
+    l = x - w / f,
+    r = x + w / f,
+    t = y - h / f,
+    b = y + h / f,
+  }
+end
+
+function camera_bbox(camera)
+  local f = 2 * camera.zoom * tile_size_px
+  return {
+    l = camera.position.x - resolution.x / f,
+    r = camera.position.x + resolution.x / f,
+    t = camera.position.y - resolution.y / f,
+    b = camera.position.y + resolution.y / f,
+  }
+end
+
+function pan_camera_to_cover_bbox(camera, bbox)
+  if bbox.l ~= nil then
+    local cbb = camera_bbox(camera)
+    local bbox_w = bbox.r - bbox.l
+    local bbox_h = bbox.b - bbox.t
+    local camera_w = cbb.r - cbb.l
+    local camera_h = cbb.b - cbb.t
+    log("panning: camera: " .. serpent.line(camera))
+    log("panning: camera bbox: " .. serpent.line(cbb))
+    log("panning: target bbox: " .. serpent.line(bbox))
+
+    if camera_w < bbox_w then
+      camera = translate_camera(
+        camera,
+        { x = (bbox.r + bbox.l) / 2 - camera.position.x, y = 0 }
+      )
+      log("panning: camera not wide enough")
+    elseif bbox.l < cbb.l then
+      camera = translate_camera(camera, { x = bbox.l - cbb.l, y = 0 })
+      log("panning: camera panned left")
+    elseif bbox.r > cbb.r then
+      camera = translate_camera(camera, { x = bbox.r - cbb.r, y = 0 })
+      log("panning: camera panned right")
+    end
+
+    cbb = camera_bbox(camera)
+    log("panning: 2nd camera: " .. serpent.line(camera))
+    log("panning: 2nd camera bbox: " .. serpent.line(cbb))
+
+    if camera_h < bbox_h then
+      camera = translate_camera(
+        camera,
+        { x = 0, y = (bbox.b + bbox.t) / 2 - camera.position.y }
+      )
+      log("panning: camera not tall enough")
+    elseif bbox.t < cbb.t then
+      camera = translate_camera(camera, { x = 0, y = bbox.t - cbb.t })
+      log("panning: camera panned up")
+    elseif bbox.b > cbb.b then
+      camera = translate_camera(camera, { x = 0, y = bbox.b - cbb.b })
+      log("panning: camera panned down")
+    end
+  end
+
+  log("panning: result camera: " .. serpent.line(camera))
+  log("panning: result camera bbox: " .. serpent.line(camera_bbox(camera)))
+
+  return camera
 end
 
 function run()
   local bbox = { l = -30, r = 30, t = -30, b = 30 }
+  local current_camera = compute_camera(bbox)
   local last_expansion = 0
   local last_expansion_bbox = bbox
   local shrink_start_tick = nil
   local shrink_end_tick = nil
-  local shrink_start_bbox = nil
+  local shrink_start_camera = nil
+  local recently_built_bboxes = {{}, {}, {}}
 
   script.on_nth_tick(
     nth_tick,
     function(event)
+      log("current bbox: " .. serpent.line(bbox))
+
       local base_bb = base_bbox()
       local expanded_bbox = expand_bbox(bbox, base_bb)
       if (expanded_bbox.l < last_expansion_bbox.l
@@ -107,9 +223,12 @@ function run()
         last_expansion_bbox = expanded_bbox
         shrink_start_tick = nil
         shrink_end_tick = nil
-        shrink_start_bbox = nil
+        shrink_start_camera = nil
       end
-      bbox = lerp_bbox(bbox, expanded_bbox, 0.35)
+      bbox = lerp_bbox(bbox, expanded_bbox, base_bbox_lerp_step)
+
+      log("base bbox: " .. serpent.line(base_bb))
+      log("expanded bbox: " .. serpent.line(expanded_bbox))
 
       if base_bb.l ~= nil then
         local bbox_w = bbox.r - bbox.l
@@ -118,37 +237,62 @@ function run()
         local base_h = base_bb.b - base_bb.t
 
         if last_expansion ~= nil
-          and (base_w < shrink_threshold * bbox_w or base_h < shrink_threshold * bbox_h)
+          and (base_w < shrink_threshold * bbox_w and base_h < shrink_threshold * bbox_h)
           and event.tick - last_expansion >= shrink_delay_ticks
+          and shrink_start_tick == nil
         then
-          last_expansion = nil
-          shrink_start_bbox = bbox
+          bbox = base_bb
+        end
+      end
+
+      local target_camera = compute_camera(bbox)
+
+      if target_camera.zoom > current_camera.zoom then
+        if shrink_start_tick == nil then
+          shrink_start_camera = current_camera
           shrink_start_tick = event.tick
           shrink_end_tick = shrink_start_tick + shrink_time_ticks
         end
 
-        if shrink_start_tick ~= nil then
-          if event.tick >= shrink_end_tick then
-            shrink_start_tick = nil
-            shrink_end_tick = nil
-            shrink_start_bbox = nil
-            bbox = base_bb
-          else 
-            bbox = sirp_bbox(shrink_start_bbox, base_bb, (event.tick - shrink_start_tick) / (shrink_end_tick - shrink_start_tick))
-          end
+        if event.tick >= shrink_end_tick then
+          shrink_start_tick = nil
+          shrink_end_tick = nil
+          shrink_start_camera = nil
+        else
+          current_camera = lerp_camera(
+            shrink_start_camera,
+            target_camera,
+            sirp((event.tick - shrink_start_tick) / (shrink_end_tick - shrink_start_tick))
+          )
         end
+      else
+        if target_camera.desired_zoom < min_zoom then
+          log("desired zoom too low: " .. target_camera.desired_zoom .. " actual zoom: " .. target_camera.zoom)
+
+          local recent_bbox = bbox_union_flattened(recently_built_bboxes)
+          target_camera = pan_camera_to_cover_bbox(
+            {
+              position = current_camera.position,
+              zoom = target_camera.zoom,
+              desired_zoom = current_camera.zoom,
+            },
+            marginize_bbox(recent_bbox)
+          )
+
+          log("recent bbox: " .. serpent.line(recent_bbox))
+          log("current camera bbox: " .. serpent.line(camera_bbox(current_camera)))
+          log("target camera bbox: " .. serpent.line(camera_bbox(target_camera)))
+
+        end
+
+        current_camera = lerp_camera(current_camera, target_camera, camera_lerp_step)
       end
-
-      --log("base bbox: " .. serpent.line(base_bb))
-      --log("bbox: " .. serpent.line(bbox))
-
-      local camera = compute_camera(bbox, resolution, margin_fraction)
 
       game.take_screenshot{
         surface = game.surfaces[1],
-        position = camera.position,
-        resolution = {camera.resolution.x, camera.resolution.y},
-        zoom = camera.zoom,
+        position = current_camera.position,
+        resolution = {resolution.x, resolution.y},
+        zoom = current_camera.zoom,
         path = string.format(screenshot_filename_pattern, event.tick/event.nth_tick),
         show_entity_info = true,
         daytime = 0,
@@ -183,6 +327,23 @@ function run()
       )
       game.write_file(research_finished_filename, event.research.localised_name, true)
       game.write_file(research_finished_filename, "\n", true)
+    end
+  )
+
+  script.on_event(
+    defines.events.on_built_entity,
+    function (event)
+      local idx = (event.tick % recently_built_ticks) + 1
+      recently_built_bboxes[idx] = recently_built_bboxes[idx] or {}
+      table.insert(recently_built_bboxes[idx], entity_bbox(event.created_entity))
+    end
+  )
+
+  script.on_event(
+    defines.events.on_tick,
+    function (event)
+      local idx = ((event.tick + 1) % recently_built_ticks) + 1
+      recently_built_bboxes[idx] = {}
     end
   )
 end
