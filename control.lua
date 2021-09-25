@@ -1,22 +1,28 @@
-local tick_per_s = 60
-local speedup = 300
-local framerate = 30
-local tile_size_px = 32
-local shrink_threshold = 0.75
-local shrink_delay_s = 3
-local shrink_time_s = 2
-local margin_fraction = 0.05
-local min_zoom = 0.03125 * 4  -- Minimum allowed by game is 0.03125
-local resolution = {x = 1920, y = 1080}
-local recently_built_seconds = 2
-local base_bbox_lerp_step = 1
-local camera_lerp_step = 0.35
+-- User parameters
+local speedup = 300                      -- Number of game seconds per timelapse second
+local framerate = 30                     -- Timelapse frames per second
+local shrink_threshold = 0.75            -- Shrink base boundaries when base width and height are both less than this much of base boundary
+local shrink_delay_s = 3                 -- Seconds to wait since last boundary expansion before shrinking base boundary
+local shrink_time_s = 2                  -- Seconds to complete a boundary shrink
+local margin_fraction = 0.05             -- Percentage of screen to leave as margin
+local min_zoom = 0.03125 * 4             -- Minimum allowed by game is 0.03125
+local resolution = {x = 1920, y = 1080}  -- Output image resolution
+local recently_built_seconds = 2         -- When at minimum zoom, track buildings built in the last this many seconds
+local base_bbox_lerp_step = 1            -- Exponential approach factor for base boundary tracking
+local camera_lerp_step = 0.35            -- Exponential approach factor for camera movement
 
-local output_dir = "replay-timelapse"
+-- Output paths
+local output_dir = "replay-timelapse"    -- Output directory (relative to Factorio script output directory)
 local screenshot_filename_pattern = output_dir .. "/%08d-replay.png"
 local research_progress_filename = output_dir .. "/research-progress.txt"
 local research_finished_filename = output_dir .. "/research-finish.txt"
 
+
+-- Game constants
+local tick_per_s = 60
+local tile_size_px = 32
+
+-- Derived parameters
 local nth_tick = tick_per_s * speedup / framerate
 local recently_built_ticks = recently_built_seconds * tick_per_s * speedup
 local margin_expansion_factor = 1 + (margin_fraction / (1 - margin_fraction))
