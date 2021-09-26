@@ -217,15 +217,25 @@ function pan_camera_to_cover_bbox(camera, bbox)
   return camera
 end
 
+function frame_to_timestamp(frame)
+  s = math.floor(frame / framerate)
+  m = math.floor(s / 60)
+  h = math.floor(m / 60)
+  f = frame % framerate
+  s = s % 60
+  m = m % 60
+  return string.format("%02d:%02d:%02d:%02d", h, m, s, f)
+end
+
 function init_research_csv()
   game.write_file(
     research_finished_filename,
-    string.format("%s,%s,%s,%s\n", "tick", "frame", "research_name", "research_localised_name"),
+    string.format("%s,%s,%s,%s,%s\n", "tick", "frame", "timestamp", "research_name", "research_localised_name"),
     false
   )
   game.write_file(
     research_progress_filename,
-    string.format("%s,%s,%s,%s,%s\n", "state", "tick", "frame", "research_name", "research_progress"),
+    string.format("%s,%s,%s,%s,%s,%s\n", "state", "tick", "frame", "timestamp", "research_name", "research_progress"),
     false
   )
 end
@@ -356,13 +366,25 @@ function run()
         local research = force.current_research
         game.write_file(
           research_progress_filename,
-          string.format("current,%s,%s,%s,%s\n", event.tick, event.tick/nth_tick, research.name, force.research_progress),
+          string.format(
+            "current,%s,%s,%s,%s,%s\n",
+            event.tick,
+            event.tick/nth_tick,
+            frame_to_timestamp(event.tick/nth_tick),
+            research.name,
+            force.research_progress
+          ),
           true
         )
       else
         game.write_file(
           research_progress_filename,
-          string.format("none,%s,%s,,\n", event.tick, event.tick/nth_tick),
+          string.format(
+            "none,%s,%s,%s,,\n",
+            event.tick,
+            event.tick/nth_tick,
+            frame_to_timestamp(event.tick/nth_tick)
+          ),
           true
         )
       end
@@ -374,7 +396,13 @@ function run()
     function (event)
       game.write_file(
         research_finished_filename,
-        string.format("%s,%s,%s,", event.tick, event.tick/nth_tick, event.research.name),
+        string.format(
+          "%s,%s,%s,%s,",
+          event.tick,
+          event.tick/nth_tick,
+          frame_to_timestamp(event.tick/nth_tick),
+          event.research.name
+        ),
         true
       )
       game.write_file(research_finished_filename, event.research.localised_name, true)
