@@ -5,8 +5,8 @@ local speedup = 300                      -- Game seconds per timelapse second
 
 local output_dir = "replay-timelapse"    -- Output directory (relative to Factorio script output directory)
 local screenshot_filename_pattern = output_dir .. "/%08d-replay.png"
-local research_progress_filename = output_dir .. "/research-progress.txt"
-local research_finished_filename = output_dir .. "/research-finish.txt"
+local research_progress_filename = output_dir .. "/research-progress.csv"
+local research_finished_filename = output_dir .. "/research-finish.csv"
 
 -- Camera movement parameters
 local min_zoom = 0.03125 * 4             -- Minimum allowed by game is 0.03125
@@ -217,6 +217,19 @@ function pan_camera_to_cover_bbox(camera, bbox)
   return camera
 end
 
+function init_research_csv()
+  game.write_file(
+    research_finished_filename,
+    string.format("%s,%s,%s,%s\n", "tick", "frame", "research_name", "research_localised_name"),
+    false
+  )
+  game.write_file(
+    research_progress_filename,
+    string.format("%s,%s,%s,%s,%s\n", "state", "tick", "frame", "research_name", "research_progress"),
+    false
+  )
+end
+
 function run()
   local bbox = { l = -30, r = 30, t = -30, b = 30 }
   local current_camera = compute_camera(bbox)
@@ -232,6 +245,10 @@ function run()
     nth_tick,
     function(event)
       log("")
+
+      if event.tick == 0 then
+        init_research_csv()
+      end
 
       local base_bb = base_bbox()
       local expanded_bbox = expand_bbox(bbox, base_bb)
@@ -339,13 +356,13 @@ function run()
         local research = force.current_research
         game.write_file(
           research_progress_filename,
-          string.format("current %s %s %s %s\n", event.tick, event.tick/nth_tick, research.name, force.research_progress),
+          string.format("current,%s,%s,%s,%s\n", event.tick, event.tick/nth_tick, research.name, force.research_progress),
           true
         )
       else
         game.write_file(
           research_progress_filename,
-          string.format("none %s %s\n", event.tick, event.tick/nth_tick),
+          string.format("none,%s,%s,,\n", event.tick, event.tick/nth_tick),
           true
         )
       end
@@ -357,7 +374,7 @@ function run()
     function (event)
       game.write_file(
         research_finished_filename,
-        string.format("%s %s %s ", event.tick, event.tick/nth_tick, event.research.name),
+        string.format("%s,%s,%s,", event.tick, event.tick/nth_tick, event.research.name),
         true
       )
       game.write_file(research_finished_filename, event.research.localised_name, true)
