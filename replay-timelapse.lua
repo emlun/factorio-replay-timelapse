@@ -6,10 +6,12 @@ local shrink_delay_s = 3                 -- Seconds to wait since last boundary 
 local shrink_time_s = 2                  -- Seconds to complete a boundary shrink
 local margin_fraction = 0.05             -- Percentage of screen to leave as margin
 local min_zoom = 0.03125 * 4             -- Minimum allowed by game is 0.03125
+local max_zoom = 0.5                     -- Max zoom level
 local resolution = {x = 1920, y = 1080}  -- Output image resolution
 local recently_built_seconds = 2         -- When at minimum zoom, track buildings built in the last this many seconds
-local base_bbox_lerp_step = 1            -- Exponential approach factor for base boundary tracking
+local base_bbox_lerp_step = 0.35         -- Exponential approach factor for base boundary tracking
 local camera_lerp_step = 0.35            -- Exponential approach factor for camera movement
+local shrink_abort_transition_s = 1      -- Seconds of smooth transition after aborting a shrink
 
 -- Output paths
 local output_dir = "replay-timelapse"    -- Output directory (relative to Factorio script output directory)
@@ -28,6 +30,7 @@ local recently_built_ticks = recently_built_seconds * tick_per_s * speedup
 local margin_expansion_factor = 1 + (margin_fraction / (1 - margin_fraction))
 local shrink_delay_ticks = shrink_delay_s * tick_per_s * speedup
 local shrink_time_ticks = shrink_time_s * tick_per_s * speedup
+local shrink_abort_recovery_ticks = shrink_abort_transition_s * tick_per_s * speedup
 
 
 function entity_bbox(entity)
@@ -56,6 +59,30 @@ function lerp_bbox(bbox_a, bbox_b, t)
     t = s * bbox_a.t + t * bbox_b.t,
     b = s * bbox_a.b + t * bbox_b.b,
   }
+end
+
+function lerp_bbox_x(bbox_a, bbox_b, t)
+  local s = 1 - t
+  return {
+    l = s * bbox_a.l + t * bbox_b.l,
+    r = s * bbox_a.r + t * bbox_b.r,
+    t = bbox_a.t,
+    b = bbox_a.b,
+  }
+end
+
+function lerp_bbox_y(bbox_a, bbox_b, t)
+  local s = 1 - t
+  return {
+    l = bbox_a.l,
+    r = bbox_a.r,
+    t = s * bbox_a.t + t * bbox_b.t,
+    b = s * bbox_a.b + t * bbox_b.b,
+  }
+end
+
+function lerp(a, b, t)
+  return (1 - t) * a + t * b
 end
 
 function sirp(t)
@@ -108,7 +135,7 @@ function compute_camera(bbox)
   local h_margin_px = h_px * margin_expansion_factor
 
   local desired_zoom = math.min(1, resolution.x / w_margin_px, resolution.y / h_margin_px)
-  local zoom = math.max(desired_zoom, min_zoom)
+  local zoom = math.min(max_zoom, math.max(min_zoom, desired_zoom))
 
   return {
     position = center,
@@ -194,80 +221,106 @@ function run()
   local current_camera = compute_camera(bbox)
   local last_expansion = 0
   local last_expansion_bbox = bbox
-  local shrink_start_tick = nil
-  local shrink_end_tick = nil
-  local shrink_start_camera = nil
   local recently_built_bboxes = {{}, {}, {}}
+  local shrink_start_tick = nil
+  local shrink_start_camera = nil
+  local shrink_end_camera = nil
+  local shrink_abort_tick = nil
 
   script.on_nth_tick(
     nth_tick,
     function(event)
+      log("")
 
       local base_bb = base_bbox()
       local expanded_bbox = expand_bbox(bbox, base_bb)
-      if (expanded_bbox.l < last_expansion_bbox.l
-            or expanded_bbox.r > last_expansion_bbox.r
-            or expanded_bbox.t < last_expansion_bbox.t
-            or expanded_bbox.b > last_expansion_bbox.b)
+      if (expanded_bbox.l < last_expansion_bbox.l)
+        or (expanded_bbox.r > last_expansion_bbox.r)
+        or (expanded_bbox.t < last_expansion_bbox.t)
+        or (expanded_bbox.b > last_expansion_bbox.b)
       then
         last_expansion = event.tick
         last_expansion_bbox = expanded_bbox
-        shrink_start_tick = nil
-        shrink_end_tick = nil
-        shrink_start_camera = nil
-      end
-      bbox = lerp_bbox(bbox, expanded_bbox, base_bbox_lerp_step)
-
-      if base_bb.l ~= nil then
-        local bbox_w = bbox.r - bbox.l
-        local bbox_h = bbox.b - bbox.t
-        local base_w = base_bb.r - base_bb.l
-        local base_h = base_bb.b - base_bb.t
-
-        if last_expansion ~= nil
-          and (base_w < shrink_threshold * bbox_w and base_h < shrink_threshold * bbox_h)
-          and event.tick - last_expansion >= shrink_delay_ticks
-          and shrink_start_tick == nil
-        then
-          bbox = base_bb
+        if shrink_start_tick ~= nil then
+          shrink_abort_tick = event.tick
         end
+        log("stop shrink: " .. event.tick)
       end
 
-      local target_camera = compute_camera(bbox)
+      if base_bb.l ~= nil and shrink_start_tick == nil and (event.tick - last_expansion) >= shrink_delay_ticks then
+        local target_bbox = bbox
+        local shrinking = false
+        if (base_bb.r - base_bb.l) / (bbox.r - bbox.l) < shrink_threshold then
+          target_bbox = lerp_bbox_x(target_bbox, base_bb, 1)
+          shrinking = true
+        end
+        if (base_bb.b - base_bb.t) / (bbox.b - bbox.t) < shrink_threshold then
+          target_bbox = lerp_bbox_y(target_bbox, base_bb, 1)
+          shrinking = true
+        end
 
-      if target_camera.zoom > current_camera.zoom then
-        if shrink_start_tick == nil then
-          shrink_start_camera = current_camera
+        if shrinking then
           shrink_start_tick = event.tick
-          shrink_end_tick = shrink_start_tick + shrink_time_ticks
-        end
-
-        if event.tick >= shrink_end_tick then
-          shrink_start_tick = nil
-          shrink_end_tick = nil
-          shrink_start_camera = nil
-        else
-          current_camera = lerp_camera(
-            shrink_start_camera,
-            target_camera,
-            sirp((event.tick - shrink_start_tick) / (shrink_end_tick - shrink_start_tick))
-          )
+          shrink_start_camera = current_camera
+          shrink_end_camera = compute_camera(target_bbox)
+          shrink_abort_tick = nil
+          bbox = base_bb
+          log("start shrink: " .. shrink_start_tick .. " " .. serpent.line(shrink_start_camera))
+          log("start shrink w h: " .. serpent.line(shrinking_w) .. " " .. serpent.line(shrinking_h))
+          log("shrink ticks: " .. shrink_time_ticks)
         end
       else
-        if target_camera.desired_zoom < min_zoom then
-          local recent_bbox = bbox_union_flattened(recently_built_bboxes)
-          target_camera = pan_camera_to_cover_bbox(
-            {
-              position = current_camera.position,
-              zoom = target_camera.zoom,
-              desired_zoom = current_camera.zoom,
-            },
-            marginize_bbox(recent_bbox)
+        bbox = lerp_bbox(bbox, expanded_bbox, base_bbox_lerp_step)
+      end
+
+      local bbox_target_camera = compute_camera(bbox)
+      if bbox_target_camera.desired_zoom < min_zoom then
+        local recent_bbox = bbox_union_flattened(recently_built_bboxes)
+        bbox_target_camera = pan_camera_to_cover_bbox(
+          {
+            position = current_camera.position,
+            zoom = bbox_target_camera.zoom,
+            desired_zoom = current_camera.zoom,
+          },
+          marginize_bbox(recent_bbox)
+        )
+      end
+
+      local shrink_target_camera = nil
+      if shrink_start_tick ~= nil then
+        local shrink_tick = event.tick - shrink_start_tick
+        log("shrink tick: " .. shrink_tick)
+        if shrink_tick > shrink_time_ticks
+          or (shrink_abort_tick ~= nil and event.tick - shrink_abort_tick >= shrink_abort_recovery_ticks)
+        then
+          shrink_start_tick = nil
+          shrink_start_camera = nil
+          shrink_end_camera = nil
+          shrink_abort_tick = nil
+          shrinking_w = false
+          shrinking_h = false
+          log("end shrink: " .. shrink_tick)
+        else
+          log("sirp t: " .. (shrink_tick / shrink_time_ticks))
+          shrink_target_camera = lerp_camera(
+            shrink_start_camera,
+            shrink_end_camera,
+            sirp(shrink_tick / shrink_time_ticks)
           )
         end
-
-        current_camera = lerp_camera(current_camera, target_camera, camera_lerp_step)
       end
+
+      local target_camera = bbox_target_camera
+      if shrink_target_camera ~= nil and shrink_abort_tick ~= nil then
+        target_camera = lerp_camera(
+          shrink_target_camera,
+          bbox_target_camera,
+          sirp(math.min(1, (event.tick - shrink_abort_tick) / shrink_abort_recovery_ticks))
+        )
+      elseif shrink_target_camera ~= nil then
+        target_camera = shrink_target_camera
+      end
+      current_camera = lerp_camera(current_camera, target_camera, camera_lerp_step)
 
       game.take_screenshot{
         surface = game.surfaces[1],
