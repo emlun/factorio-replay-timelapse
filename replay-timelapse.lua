@@ -1,23 +1,24 @@
--- User parameters
-local speedup = 300                      -- Number of game seconds per timelapse second
-local framerate = 30                     -- Timelapse frames per second
-local shrink_threshold = 0.75            -- Shrink base boundaries when base width and height are both less than this much of base boundary
-local shrink_delay_s = 3                 -- Seconds to wait since last boundary expansion before shrinking base boundary
-local shrink_time_s = 2                  -- Seconds to complete a boundary shrink
-local margin_fraction = 0.05             -- Percentage of screen to leave as margin
-local min_zoom = 0.03125 * 4             -- Minimum allowed by game is 0.03125
-local max_zoom = 0.5                     -- Max zoom level
+-- Output settings
 local resolution = {x = 1920, y = 1080}  -- Output image resolution
-local recently_built_seconds = 2         -- When at minimum zoom, track buildings built in the last this many seconds
-local base_bbox_lerp_step = 0.35         -- Exponential approach factor for base boundary tracking
-local camera_lerp_step = 0.35            -- Exponential approach factor for camera movement
-local shrink_abort_transition_s = 1      -- Seconds of smooth transition after aborting a shrink
+local framerate = 30                     -- Timelapse frames per second
+local speedup = 300                      -- Game seconds per timelapse second
 
--- Output paths
 local output_dir = "replay-timelapse"    -- Output directory (relative to Factorio script output directory)
 local screenshot_filename_pattern = output_dir .. "/%08d-replay.png"
 local research_progress_filename = output_dir .. "/research-progress.txt"
 local research_finished_filename = output_dir .. "/research-finish.txt"
+
+-- Camera movement parameters
+local min_zoom = 0.03125 * 4             -- Minimum allowed by game is 0.03125
+local max_zoom = 0.5                     -- Max zoom level
+local margin_fraction = 0.05             -- Fraction of screen to leave as margin on each edge
+local shrink_threshold = 0.75            -- Shrink base boundary when base width or height is less than this fraction of it
+local shrink_delay_s = 3                 -- Seconds to wait since last boundary expansion before shrinking base boundary
+local shrink_time_s = 2                  -- Seconds to complete a boundary shrink
+local shrink_abort_transition_s = 1      -- Seconds of smooth transition after aborting a shrink
+local recently_built_seconds = 2         -- When at minimum zoom, track buildings built in the last this many seconds
+local base_bbox_lerp_step = 0.35         -- Exponential approach factor for base boundary tracking
+local camera_lerp_step = 0.35            -- Exponential approach factor for camera movement
 
 
 -- Game constants
