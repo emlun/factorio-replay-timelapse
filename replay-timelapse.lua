@@ -129,13 +129,10 @@ function compute_camera(bbox)
   local w_tile = bbox.r - bbox.l
   local h_tile = bbox.b - bbox.t
 
-  local w_px = w_tile * tile_size_px
-  local h_px = h_tile * tile_size_px
+  local w_px = w_tile * tile_size_px * margin_expansion_factor
+  local h_px = h_tile * tile_size_px * margin_expansion_factor
 
-  local w_margin_px = w_px * margin_expansion_factor
-  local h_margin_px = h_px * margin_expansion_factor
-
-  local desired_zoom = math.min(1, resolution.x / w_margin_px, resolution.y / h_margin_px)
+  local desired_zoom = math.min(1, resolution.x / w_px, resolution.y / h_px)
   local zoom = math.min(max_zoom, math.max(min_zoom, desired_zoom))
 
   return {
