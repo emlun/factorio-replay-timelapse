@@ -251,8 +251,6 @@ function run()
   script.on_nth_tick(
     nth_tick,
     function(event)
-      log("")
-
       if event.tick == 0 then
         init_research_csv()
       end
@@ -269,7 +267,6 @@ function run()
         if shrink_start_tick ~= nil then
           shrink_abort_tick = event.tick
         end
-        log("stop shrink: " .. event.tick)
       end
 
       if base_bb.l ~= nil and shrink_start_tick == nil and (event.tick - last_expansion) >= shrink_delay_ticks then
@@ -290,9 +287,6 @@ function run()
           shrink_end_camera = compute_camera(target_bbox)
           shrink_abort_tick = nil
           bbox = base_bb
-          log("start shrink: " .. shrink_start_tick .. " " .. serpent.line(shrink_start_camera))
-          log("start shrink w h: " .. serpent.line(shrinking_w) .. " " .. serpent.line(shrinking_h))
-          log("shrink ticks: " .. shrink_time_ticks)
         end
       else
         bbox = lerp_bbox(bbox, expanded_bbox, base_bbox_lerp_step)
@@ -314,7 +308,6 @@ function run()
       local shrink_target_camera = nil
       if shrink_start_tick ~= nil then
         local shrink_tick = event.tick - shrink_start_tick
-        log("shrink tick: " .. shrink_tick)
         if shrink_tick > shrink_time_ticks
           or (shrink_abort_tick ~= nil and event.tick - shrink_abort_tick >= shrink_abort_recovery_ticks)
         then
@@ -324,9 +317,7 @@ function run()
           shrink_abort_tick = nil
           shrinking_w = false
           shrinking_h = false
-          log("end shrink: " .. shrink_tick)
         else
-          log("sirp t: " .. (shrink_tick / shrink_time_ticks))
           shrink_target_camera = lerp_camera(
             shrink_start_camera,
             shrink_end_camera,
