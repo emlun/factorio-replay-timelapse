@@ -191,27 +191,33 @@ function pan_camera_to_cover_bbox(camera, bbox)
     local camera_h = cbb.b - cbb.t
 
     if camera_w < bbox_w then
-      camera = translate_camera(
-        camera,
-        { x = (bbox.r + bbox.l) / 2 - camera.position.x, y = 0 }
-      )
-    elseif bbox.l < cbb.l then
-      camera = translate_camera(camera, { x = bbox.l - cbb.l, y = 0 })
-    elseif bbox.r > cbb.r then
-      camera = translate_camera(camera, { x = bbox.r - cbb.r, y = 0 })
+      if cbb.l < bbox.l then
+        camera = translate_camera(camera, { x = bbox.l - cbb.l, y = 0 })
+      elseif cbb.r > bbox.r then
+        camera = translate_camera(camera, { x = bbox.r - cbb.r, y = 0 })
+      end
+    else
+      if bbox.l < cbb.l then
+        camera = translate_camera(camera, { x = bbox.l - cbb.l, y = 0 })
+      elseif bbox.r > cbb.r then
+        camera = translate_camera(camera, { x = bbox.r - cbb.r, y = 0 })
+      end
     end
 
     cbb = camera_bbox(camera)
 
     if camera_h < bbox_h then
-      camera = translate_camera(
-        camera,
-        { x = 0, y = (bbox.b + bbox.t) / 2 - camera.position.y }
-      )
-    elseif bbox.t < cbb.t then
-      camera = translate_camera(camera, { x = 0, y = bbox.t - cbb.t })
-    elseif bbox.b > cbb.b then
-      camera = translate_camera(camera, { x = 0, y = bbox.b - cbb.b })
+      if cbb.t < bbox.t then
+        camera = translate_camera(camera, { x = 0, y = bbox.t - cbb.t })
+      elseif cbb.b > bbox.b then
+        camera = translate_camera(camera, { x = 0, y = bbox.b - cbb.b })
+      end
+    else
+      if bbox.t < cbb.t then
+        camera = translate_camera(camera, { x = 0, y = bbox.t - cbb.t })
+      elseif bbox.b > cbb.b then
+        camera = translate_camera(camera, { x = 0, y = bbox.b - cbb.b })
+      end
     end
   end
 
