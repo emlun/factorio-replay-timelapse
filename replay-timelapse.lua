@@ -34,6 +34,7 @@ local shrink_time_ticks = shrink_time_s * tick_per_s * speedup
 local shrink_abort_recovery_ticks = shrink_abort_transition_s * tick_per_s * speedup
 
 
+-- Return the bounding box of an entity.
 function entity_bbox(entity)
   return {
     l = entity.bounding_box.left_top.x,
@@ -43,6 +44,7 @@ function entity_bbox(entity)
   }
 end
 
+-- Compute the smallest bounding box containing the union of two bounding boxes.
 function expand_bbox(bbox_a, bbox_b)
   return {
     l = math.floor(math.min(bbox_a.l, bbox_b.l or bbox_a.l)),
@@ -52,6 +54,8 @@ function expand_bbox(bbox_a, bbox_b)
   }
 end
 
+-- Linearly interpolate between two bounding boxes.
+-- t: Interpolation factor in the interval [0, 1]
 function lerp_bbox(bbox_a, bbox_b, t)
   local s = 1 - t
   return {
@@ -62,6 +66,8 @@ function lerp_bbox(bbox_a, bbox_b, t)
   }
 end
 
+-- Linearly interpolate only the x axis between two bounding boxes.
+-- t: Interpolation factor in the interval [0, 1]
 function lerp_bbox_x(bbox_a, bbox_b, t)
   local s = 1 - t
   return {
@@ -72,6 +78,8 @@ function lerp_bbox_x(bbox_a, bbox_b, t)
   }
 end
 
+-- Linearly interpolate only the y axis between two bounding boxes.
+-- t: Interpolation factor in the interval [0, 1]
 function lerp_bbox_y(bbox_a, bbox_b, t)
   local s = 1 - t
   return {
@@ -82,14 +90,21 @@ function lerp_bbox_y(bbox_a, bbox_b, t)
   }
 end
 
+-- Linear interpolation between two numbers
+-- t: Interpolation factor in the interval [0, 1]
 function lerp(a, b, t)
   return (1 - t) * a + t * b
 end
 
+-- Sinusoidal interpolation between two numbers
+-- t: Interpolation parameter in the interval [0, 1]
 function sirp(t)
   return (math.sin((t - 0.5) * math.pi) + 1) / 2
 end
 
+-- Linear interpolation between two cameras
+-- t: Interpolation factor in the interval [0, 1]
+-- Position and zoom are interpolated, desired zoom is taken from camera_b.
 function lerp_camera(camera_a, camera_b, t)
   local s = 1 - t
   return {
@@ -102,6 +117,9 @@ function lerp_camera(camera_a, camera_b, t)
   }
 end
 
+-- Compute the smallest bounding box containing the union
+-- of a list of lists of bounding boxes.
+-- bboxess: list of lists of bounding boxes
 function bbox_union_flattened(bboxess)
   local result = {}
   for _, bboxes in ipairs(bboxess) do
@@ -112,6 +130,7 @@ function bbox_union_flattened(bboxess)
   return result
 end
 
+-- Compute the smallest bounding box covering all of the player's buildings.
 function base_bbox()
   local entities = game.surfaces[1].find_entities_filtered{force = "player"}
   local result = {}
@@ -123,6 +142,7 @@ function base_bbox()
   return result
 end
 
+-- Compute a camera view centered on and zoomed out (as far as allowed) to cover a bounding box.
 function compute_camera(bbox)
   local center = { x = (bbox.l + bbox.r) / 2, y = (bbox.t + bbox.b) / 2 }
 
@@ -142,6 +162,7 @@ function compute_camera(bbox)
   }
 end
 
+-- Compute a new camera with the same settings but a displaced position.
 function translate_camera(camera, dxy)
   return {
     position = {
@@ -153,6 +174,7 @@ function translate_camera(camera, dxy)
   }
 end
 
+-- Add margins to a bounding box.
 function marginize_bbox(bbox)
   if bbox.l ~= nil then
     local x = (bbox.r + bbox.l) / 2
@@ -172,6 +194,7 @@ function marginize_bbox(bbox)
   end
 end
 
+-- Compute the bounding box for a camera's view.
 function camera_bbox(camera)
   local f = 2 * camera.zoom * tile_size_px
   return {
@@ -182,6 +205,11 @@ function camera_bbox(camera)
   }
 end
 
+-- If the camera is larger than the bounding box, move the camera as little as
+-- possible to cover the bounding box.
+-- If the camera is smaller than the bounding box, move the camera as little as
+-- possible to be within the bounding box.
+-- This applies to each dimension independently.
 function pan_camera_to_cover_bbox(camera, bbox)
   if bbox.l ~= nil then
     local cbb = camera_bbox(camera)
@@ -224,6 +252,7 @@ function pan_camera_to_cover_bbox(camera, bbox)
   return camera
 end
 
+-- Compute an ffmpeg time duration expressing the given frame count.
 function frame_to_timestamp(frame)
   s = math.floor(frame / framerate)
   m = math.floor(s / 60)
@@ -234,6 +263,7 @@ function frame_to_timestamp(frame)
   return string.format("%02d:%02d:%02d:%02d", h, m, s, f)
 end
 
+-- Write CSV headers to the research progress files.
 function init_research_csv()
   game.write_file(
     research_finished_filename,
