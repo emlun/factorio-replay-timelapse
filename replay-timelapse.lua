@@ -154,18 +154,22 @@ function translate_camera(camera, dxy)
 end
 
 function marginize_bbox(bbox)
-  local x = (bbox.r + bbox.l) / 2
-  local y = (bbox.b + bbox.t) / 2
-  local w = bbox.r - bbox.l
-  local h = bbox.b - bbox.t
+  if bbox.l ~= nil then
+    local x = (bbox.r + bbox.l) / 2
+    local y = (bbox.b + bbox.t) / 2
+    local w = bbox.r - bbox.l
+    local h = bbox.b - bbox.t
 
-  local f = 2 / margin_expansion_factor
-  return {
-    l = x - w / f,
-    r = x + w / f,
-    t = y - h / f,
-    b = y + h / f,
-  }
+    local f = 2 / margin_expansion_factor
+    return {
+      l = x - w / f,
+      r = x + w / f,
+      t = y - h / f,
+      b = y + h / f,
+    }
+  else
+    return bbox
+  end
 end
 
 function camera_bbox(camera)
