@@ -1,5 +1,6 @@
 -- Output settings
-local resolution = {x = 1920, y = 1080}  -- Output image resolution
+local resolution = {x = 1920, y = 1080}  -- Output image resolution (1080p)
+--local resolution = {x = 3840, y = 2160}  -- Output image resolution (4k)
 local framerate = 30                     -- Timelapse frames per second
 local speedup = 300                      -- Game seconds per timelapse second
 
@@ -9,8 +10,8 @@ local research_progress_filename = output_dir .. "/research-progress.csv"
 local research_finished_filename = output_dir .. "/research-finish.csv"
 
 -- Camera movement parameters
-local min_zoom = 0.03125 * 4             -- Minimum allowed by game is 0.03125
-local max_zoom = 0.5                     -- Max zoom level
+local min_zoom = 0.03125 * 4             -- Min zoom level (widest field of view)
+local max_zoom = 0.5                     -- Max zoom level (narrowest field of view)
 local margin_fraction = 0.05             -- Fraction of screen to leave as margin on each edge
 local shrink_threshold = 0.75            -- Shrink base boundary when base width or height is less than this fraction of it
 local shrink_delay_s = 3                 -- Seconds to wait since last boundary expansion before shrinking base boundary
@@ -24,8 +25,12 @@ local camera_lerp_step = 0.35            -- Exponential approach factor for came
 -- Game constants
 local tick_per_s = 60
 local tile_size_px = 32
+local min_zoom_hard = 0.03125            -- Minimum zoom allowed by the game
 
 -- Derived parameters
+local resolution_correction = math.max(resolution.x / 1920, resolution.y / 1080)
+min_zoom = math.max(min_zoom_hard, min_zoom * resolution_correction)
+max_zoom = max_zoom * resolution_correction
 local nth_tick = tick_per_s * speedup / framerate
 local recently_built_ticks = recently_built_seconds * tick_per_s * speedup
 local margin_expansion_factor = 1 + (2 * margin_fraction)
