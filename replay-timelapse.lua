@@ -391,6 +391,7 @@ function run()
         show_entity_info = true,
         daytime = 0,
         allow_in_replay = true,
+        anti_alias = true,
       }
 
       local force = game.players[1].force
