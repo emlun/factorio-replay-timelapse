@@ -179,15 +179,14 @@ function marginize_bbox(bbox)
   if bbox.l ~= nil then
     local x = (bbox.r + bbox.l) / 2
     local y = (bbox.b + bbox.t) / 2
-    local w = bbox.r - bbox.l
-    local h = bbox.b - bbox.t
+    local half_w = (bbox.r - bbox.l) * margin_expansion_factor / 2
+    local half_h = (bbox.b - bbox.t) * margin_expansion_factor / 2
 
-    local f = 2 / margin_expansion_factor
     return {
-      l = x - w / f,
-      r = x + w / f,
-      t = y - h / f,
-      b = y + h / f,
+      l = x - half_w,
+      r = x + half_w,
+      t = y - half_h,
+      b = y + half_h,
     }
   else
     return bbox
