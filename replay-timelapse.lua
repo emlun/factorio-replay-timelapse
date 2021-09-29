@@ -241,13 +241,11 @@ end
 
 -- Compute an ffmpeg time duration expressing the given frame count.
 function frame_to_timestamp(frame)
-  s = math.floor(frame / framerate)
-  m = math.floor(s / 60)
-  h = math.floor(m / 60)
-  f = frame % framerate
-  s = s % 60
-  m = m % 60
-  return string.format("%02d:%02d:%02d:%02d", h, m, s, f)
+  local s = math.floor(frame / framerate)
+  local m = math.floor(s / 60)
+  local h = math.floor(m / 60)
+  local f = frame % framerate
+  return string.format("%02d:%02d:%02d:%02d", h, m % 60, s % 60, f)
 end
 
 -- Write CSV headers to the research progress files.
