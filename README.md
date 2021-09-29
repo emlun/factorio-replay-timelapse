@@ -41,6 +41,17 @@ Once finished, you can use [FFmpeg][ffmpeg] with the `image2` demuxer to assembl
 See the [`assemble-timelapse-video.sh`](./assemble-timelapse-video.sh) script for an example.
 
 
+## Capturing research status
+
+If the parameter `capture_gui` is set to `true`, then screenshots including GUI will also be captured.
+The intended use of this is to also capture research status, but it is disabled by default
+since it will consume unnecessarily much storage space without special attention.
+
+The GUI screenshots capture whatever is visible in the game window,
+so a simple way to reduce their size is to put the game into windowed mode
+and make the window small enough to only fit the research status (for example).
+
+
 ## Camera movement strategy
 
 Initially, the camera movement strategy is rather simple:
