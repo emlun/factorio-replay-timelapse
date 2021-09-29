@@ -4,9 +4,11 @@ local resolution = {x = 1920, y = 1080}  -- Output image resolution (1080p)
 local framerate = 30                     -- Timelapse frames per second
 local speedup = 300                      -- Game seconds per timelapse second
 local capture_gui = false                -- If true, also save screenshots with GUI
+local watch_rocket_launch = false        -- If true, slow down to real time and zoom in on rocket launches
 
 local output_dir = "replay-timelapse"    -- Output directory (relative to Factorio script output directory)
-local screenshot_filename_pattern = output_dir .. "/%08d-replay.png"
+local screenshot_filename_pattern = output_dir .. "/%08d-base.png"
+local rocket_screenshot_filename_pattern = output_dir .. "/%08d-rocket.png"
 local gui_screenshot_filename_pattern = output_dir .. "/%08d-gui.png"
 local research_progress_filename = output_dir .. "/research-progress.csv"
 local research_finished_filename = output_dir .. "/research-finish.csv"
@@ -22,12 +24,14 @@ local shrink_abort_transition_s = 1      -- Seconds of smooth transition after a
 local recently_built_seconds = 2         -- When at minimum zoom, track buildings built in the last this many seconds
 local base_bbox_lerp_step = 0.35         -- Exponential approach factor for base boundary tracking
 local camera_lerp_step = 0.35            -- Exponential approach factor for camera movement
+local camera_rocket_lerp_step = 0.15     -- Exponential approach factor for camera movement when zooming in on rocket silo
 
 
 -- Game constants
 local tick_per_s = 60
 local tile_size_px = 32
 local min_zoom_hard = 0.03125            -- Minimum zoom allowed by the game
+local rocket_launch_ticks = 1162
 
 -- Derived parameters
 local resolution_correction = math.max(resolution.x / 1920, resolution.y / 1080)
@@ -169,6 +173,21 @@ function compute_camera(bbox)
   }
 end
 
+-- Compute a camera view optimized for watching a rocket launch.
+function compute_rocket_camera(rocket_silo)
+  local bbox = entity_bbox(rocket_silo)
+  local h_tile = resolution.y / tile_size_px
+  local center = {
+    x = (bbox.l + bbox.r) / 2,
+    y = (bbox.t + bbox.b) / 2 - h_tile / 4,
+  }
+  return {
+    position = center,
+    zoom = 1,
+    desired_zoom = 1,
+  }
+end
+
 -- Compute a new camera with the same settings but a displaced position.
 function translate_camera(camera, dxy)
   return {
@@ -272,6 +291,74 @@ function run()
   local shrink_start_camera = nil
   local shrink_end_camera = nil
   local shrink_abort_tick = nil
+  local frame_num = 0
+  local watching_rocket_silo = nil
+  local rocket_start_tick = nil
+
+  function watch(tick)
+    local filename_pattern = screenshot_filename_pattern
+    if watching_rocket_silo then
+      filename_pattern = rocket_screenshot_filename_pattern
+    end
+
+    game.take_screenshot{
+      surface = game.surfaces[1],
+      position = current_camera.position,
+      resolution = {resolution.x, resolution.y},
+      zoom = current_camera.zoom,
+      path = string.format(filename_pattern, frame_num),
+      show_entity_info = true,
+      daytime = 0,
+      allow_in_replay = true,
+      anti_alias = true,
+      force_render = true,
+    }
+
+    if capture_gui then
+      game.take_screenshot{
+        surface = game.surfaces[1],
+        position = {0, 0},
+        zoom = 1,
+        path = string.format(gui_screenshot_filename_pattern, frame_num),
+        show_entity_info = true,
+        daytime = 0,
+        allow_in_replay = true,
+        show_gui = true,
+        anti_alias = true,
+        force_render = true,
+      }
+    end
+
+    local force = game.players[1].force
+    if force.current_research then
+      local research = force.current_research
+      game.write_file(
+        research_progress_filename,
+        string.format(
+          "current,%s,%s,%s,%s,%s\n",
+          tick,
+          frame_num,
+          frame_to_timestamp(frame_num),
+          research.name,
+          force.research_progress
+        ),
+        true
+      )
+    else
+      game.write_file(
+        research_progress_filename,
+        string.format(
+          "none,%s,%s,%s,,\n",
+          tick,
+          frame_num,
+          frame_to_timestamp(frame_num)
+        ),
+        true
+      )
+    end
+
+    frame_num = frame_num + 1
+  end
 
   function watch_base(event)
     if event.tick == 0 then
@@ -361,59 +448,13 @@ function run()
     end
     current_camera = lerp_camera(current_camera, target_camera, camera_lerp_step)
 
-    game.take_screenshot{
-      surface = game.surfaces[1],
-      position = current_camera.position,
-      resolution = {resolution.x, resolution.y},
-      zoom = current_camera.zoom,
-      path = string.format(screenshot_filename_pattern, event.tick/event.nth_tick),
-      show_entity_info = true,
-      daytime = 0,
-      allow_in_replay = true,
-      anti_alias = true,
-    }
+    watch(event.tick)
+  end
 
-    if capture_gui then
-      game.take_screenshot{
-        surface = game.surfaces[1],
-        position = {0, 0},
-        zoom = 1,
-        path = string.format(gui_screenshot_filename_pattern, event.tick/event.nth_tick),
-        show_entity_info = true,
-        daytime = 0,
-        allow_in_replay = true,
-        show_gui = true,
-        anti_alias = true,
-      }
-    end
-
-    local force = game.players[1].force
-    if force.current_research then
-      local research = force.current_research
-      game.write_file(
-        research_progress_filename,
-        string.format(
-          "current,%s,%s,%s,%s,%s\n",
-          event.tick,
-          event.tick/nth_tick,
-          frame_to_timestamp(event.tick/nth_tick),
-          research.name,
-          force.research_progress
-        ),
-        true
-      )
-    else
-      game.write_file(
-        research_progress_filename,
-        string.format(
-          "none,%s,%s,%s,,\n",
-          event.tick,
-          event.tick/nth_tick,
-          frame_to_timestamp(event.tick/nth_tick)
-        ),
-        true
-      )
-    end
+  function watch_rocket(event)
+    local target_camera = compute_rocket_camera(watching_rocket_silo)
+    current_camera = lerp_camera(current_camera, target_camera, camera_rocket_lerp_step)
+    watch(event.tick)
   end
 
   script.on_nth_tick(nth_tick, watch_base)
@@ -426,8 +467,8 @@ function run()
         string.format(
           "%s,%s,%s,%s,",
           event.tick,
-          event.tick/nth_tick,
-          frame_to_timestamp(event.tick/nth_tick),
+          frame_num,
+          frame_to_timestamp(frame_num),
           event.research.name
         ),
         true
@@ -451,8 +492,29 @@ function run()
     function (event)
       local idx = ((event.tick + 1) % recently_built_ticks) + 1
       recently_built_bboxes[idx] = {}
+
+      if watching_rocket_silo then
+        watch_rocket(event)
+        if event.tick - rocket_start_tick >= rocket_launch_ticks then
+          watching_rocket_silo = nil
+          script.on_nth_tick(nth_tick, watch_base)
+        end
+      end
     end
   )
+
+  if watch_rocket_launch then
+    script.on_event(
+      defines.events.on_rocket_launch_ordered,
+      function (event)
+        if watching_rocket_silo == nil then
+          script.on_nth_tick(nil)
+          rocket_start_tick = event.tick
+          watching_rocket_silo = event.rocket_silo
+        end
+      end
+    )
+  end
 end
 
 return {
