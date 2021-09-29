@@ -28,7 +28,7 @@ local tile_size_px = 32
 -- Derived parameters
 local nth_tick = tick_per_s * speedup / framerate
 local recently_built_ticks = recently_built_seconds * tick_per_s * speedup
-local margin_expansion_factor = 1 + (margin_fraction / (1 - margin_fraction))
+local margin_expansion_factor = 1 + (2 * margin_fraction)
 local shrink_delay_ticks = shrink_delay_s * tick_per_s * speedup
 local shrink_time_ticks = shrink_time_s * tick_per_s * speedup
 local shrink_abort_recovery_ticks = shrink_abort_transition_s * tick_per_s * speedup
