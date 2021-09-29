@@ -294,151 +294,150 @@ function run()
   local shrink_end_camera = nil
   local shrink_abort_tick = nil
 
-  script.on_nth_tick(
-    nth_tick,
-    function(event)
-      if event.tick == 0 then
-        init_research_csv()
-      end
+  function watch_base(event)
+    if event.tick == 0 then
+      init_research_csv()
+    end
 
-      local base_bb = base_bbox()
-      local expanded_bbox = expand_bbox(bbox, base_bb)
-      if (expanded_bbox.l < last_expansion_bbox.l)
-        or (expanded_bbox.r > last_expansion_bbox.r)
-        or (expanded_bbox.t < last_expansion_bbox.t)
-        or (expanded_bbox.b > last_expansion_bbox.b)
-      then
-        last_expansion = event.tick
-        last_expansion_bbox = expanded_bbox
-        if shrink_start_tick ~= nil then
-          shrink_abort_tick = event.tick
-        end
-      end
-
-      if base_bb.l ~= nil and shrink_start_tick == nil and (event.tick - last_expansion) >= shrink_delay_ticks then
-        local target_bbox = bbox
-        local shrinking = false
-        if (base_bb.r - base_bb.l) / (bbox.r - bbox.l) < shrink_threshold then
-          target_bbox = lerp_bbox_x(target_bbox, base_bb, 1)
-          shrinking = true
-        end
-        if (base_bb.b - base_bb.t) / (bbox.b - bbox.t) < shrink_threshold then
-          target_bbox = lerp_bbox_y(target_bbox, base_bb, 1)
-          shrinking = true
-        end
-
-        if shrinking then
-          shrink_start_tick = event.tick
-          shrink_start_camera = current_camera
-          shrink_end_camera = compute_camera(target_bbox)
-          shrink_abort_tick = nil
-          bbox = base_bb
-        end
-      else
-        bbox = lerp_bbox(bbox, expanded_bbox, base_bbox_lerp_step)
-      end
-
-      local bbox_target_camera = compute_camera(bbox)
-      if bbox_target_camera.desired_zoom < min_zoom then
-        local recent_bbox = bbox_union_flattened(recently_built_bboxes)
-        bbox_target_camera = pan_camera_to_cover_bbox(
-          {
-            position = current_camera.position,
-            zoom = bbox_target_camera.zoom,
-            desired_zoom = current_camera.zoom,
-          },
-          marginize_bbox(recent_bbox)
-        )
-      end
-
-      local shrink_target_camera = nil
+    local base_bb = base_bbox()
+    local expanded_bbox = expand_bbox(bbox, base_bb)
+    if (expanded_bbox.l < last_expansion_bbox.l)
+      or (expanded_bbox.r > last_expansion_bbox.r)
+      or (expanded_bbox.t < last_expansion_bbox.t)
+      or (expanded_bbox.b > last_expansion_bbox.b)
+    then
+      last_expansion = event.tick
+      last_expansion_bbox = expanded_bbox
       if shrink_start_tick ~= nil then
-        local shrink_tick = event.tick - shrink_start_tick
-        if shrink_tick > shrink_time_ticks
-          or (shrink_abort_tick ~= nil and event.tick - shrink_abort_tick >= shrink_abort_recovery_ticks)
-        then
-          shrink_start_tick = nil
-          shrink_start_camera = nil
-          shrink_end_camera = nil
-          shrink_abort_tick = nil
-          shrinking_w = false
-          shrinking_h = false
-        else
-          shrink_target_camera = lerp_camera(
-            shrink_start_camera,
-            shrink_end_camera,
-            sirp(shrink_tick / shrink_time_ticks)
-          )
-        end
+        shrink_abort_tick = event.tick
+      end
+    end
+
+    if base_bb.l ~= nil and shrink_start_tick == nil and (event.tick - last_expansion) >= shrink_delay_ticks then
+      local target_bbox = bbox
+      local shrinking = false
+      if (base_bb.r - base_bb.l) / (bbox.r - bbox.l) < shrink_threshold then
+        target_bbox = lerp_bbox_x(target_bbox, base_bb, 1)
+        shrinking = true
+      end
+      if (base_bb.b - base_bb.t) / (bbox.b - bbox.t) < shrink_threshold then
+        target_bbox = lerp_bbox_y(target_bbox, base_bb, 1)
+        shrinking = true
       end
 
-      local target_camera = bbox_target_camera
-      if shrink_target_camera ~= nil and shrink_abort_tick ~= nil then
-        target_camera = lerp_camera(
-          shrink_target_camera,
-          bbox_target_camera,
-          sirp(math.min(1, (event.tick - shrink_abort_tick) / shrink_abort_recovery_ticks))
-        )
-      elseif shrink_target_camera ~= nil then
-        target_camera = shrink_target_camera
+      if shrinking then
+        shrink_start_tick = event.tick
+        shrink_start_camera = current_camera
+        shrink_end_camera = compute_camera(target_bbox)
+        shrink_abort_tick = nil
+        bbox = base_bb
       end
-      current_camera = lerp_camera(current_camera, target_camera, camera_lerp_step)
+    else
+      bbox = lerp_bbox(bbox, expanded_bbox, base_bbox_lerp_step)
+    end
 
-      game.take_screenshot{
-        surface = game.surfaces[1],
-        position = current_camera.position,
-        resolution = {resolution.x, resolution.y},
-        zoom = current_camera.zoom,
-        path = string.format(screenshot_filename_pattern, event.tick/event.nth_tick),
-        show_entity_info = true,
-        daytime = 0,
-        allow_in_replay = true,
-        anti_alias = true,
-      }
+    local bbox_target_camera = compute_camera(bbox)
+    if bbox_target_camera.desired_zoom < min_zoom then
+      local recent_bbox = bbox_union_flattened(recently_built_bboxes)
+      bbox_target_camera = pan_camera_to_cover_bbox(
+        {
+          position = current_camera.position,
+          zoom = bbox_target_camera.zoom,
+          desired_zoom = current_camera.zoom,
+        },
+        marginize_bbox(recent_bbox)
+      )
+    end
 
-      if capture_gui then
-        game.take_screenshot{
-          surface = game.surfaces[1],
-          position = {0, 0},
-          zoom = 1,
-          path = string.format(gui_screenshot_filename_pattern, event.tick/event.nth_tick),
-          show_entity_info = true,
-          daytime = 0,
-          allow_in_replay = true,
-          show_gui = true,
-          anti_alias = true,
-        }
-      end
-
-      local force = game.players[1].force
-      if force.current_research then
-        local research = force.current_research
-        game.write_file(
-          research_progress_filename,
-          string.format(
-            "current,%s,%s,%s,%s,%s\n",
-            event.tick,
-            event.tick/nth_tick,
-            frame_to_timestamp(event.tick/nth_tick),
-            research.name,
-            force.research_progress
-          ),
-          true
-        )
+    local shrink_target_camera = nil
+    if shrink_start_tick ~= nil then
+      local shrink_tick = event.tick - shrink_start_tick
+      if shrink_tick > shrink_time_ticks
+        or (shrink_abort_tick ~= nil and event.tick - shrink_abort_tick >= shrink_abort_recovery_ticks)
+      then
+        shrink_start_tick = nil
+        shrink_start_camera = nil
+        shrink_end_camera = nil
+        shrink_abort_tick = nil
+        shrinking_w = false
+        shrinking_h = false
       else
-        game.write_file(
-          research_progress_filename,
-          string.format(
-            "none,%s,%s,%s,,\n",
-            event.tick,
-            event.tick/nth_tick,
-            frame_to_timestamp(event.tick/nth_tick)
-          ),
-          true
+        shrink_target_camera = lerp_camera(
+          shrink_start_camera,
+          shrink_end_camera,
+          sirp(shrink_tick / shrink_time_ticks)
         )
       end
     end
-  )
+
+    local target_camera = bbox_target_camera
+    if shrink_target_camera ~= nil and shrink_abort_tick ~= nil then
+      target_camera = lerp_camera(
+        shrink_target_camera,
+        bbox_target_camera,
+        sirp(math.min(1, (event.tick - shrink_abort_tick) / shrink_abort_recovery_ticks))
+      )
+    elseif shrink_target_camera ~= nil then
+      target_camera = shrink_target_camera
+    end
+    current_camera = lerp_camera(current_camera, target_camera, camera_lerp_step)
+
+    game.take_screenshot{
+      surface = game.surfaces[1],
+      position = current_camera.position,
+      resolution = {resolution.x, resolution.y},
+      zoom = current_camera.zoom,
+      path = string.format(screenshot_filename_pattern, event.tick/event.nth_tick),
+      show_entity_info = true,
+      daytime = 0,
+      allow_in_replay = true,
+      anti_alias = true,
+    }
+
+    if capture_gui then
+      game.take_screenshot{
+        surface = game.surfaces[1],
+        position = {0, 0},
+        zoom = 1,
+        path = string.format(gui_screenshot_filename_pattern, event.tick/event.nth_tick),
+        show_entity_info = true,
+        daytime = 0,
+        allow_in_replay = true,
+        show_gui = true,
+        anti_alias = true,
+      }
+    end
+
+    local force = game.players[1].force
+    if force.current_research then
+      local research = force.current_research
+      game.write_file(
+        research_progress_filename,
+        string.format(
+          "current,%s,%s,%s,%s,%s\n",
+          event.tick,
+          event.tick/nth_tick,
+          frame_to_timestamp(event.tick/nth_tick),
+          research.name,
+          force.research_progress
+        ),
+        true
+      )
+    else
+      game.write_file(
+        research_progress_filename,
+        string.format(
+          "none,%s,%s,%s,,\n",
+          event.tick,
+          event.tick/nth_tick,
+          frame_to_timestamp(event.tick/nth_tick)
+        ),
+        true
+      )
+    end
+  end
+
+  script.on_nth_tick(nth_tick, watch_base)
 
   script.on_event(
     defines.events.on_research_finished,
