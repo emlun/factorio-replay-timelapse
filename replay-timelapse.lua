@@ -181,28 +181,9 @@ function translate_camera(camera, dxy)
   }
 end
 
--- Add margins to a bounding box.
-function marginize_bbox(bbox)
-  if bbox.l ~= nil then
-    local x = (bbox.r + bbox.l) / 2
-    local y = (bbox.b + bbox.t) / 2
-    local half_w = (bbox.r - bbox.l) * margin_expansion_factor / 2
-    local half_h = (bbox.b - bbox.t) * margin_expansion_factor / 2
-
-    return {
-      l = x - half_w,
-      r = x + half_w,
-      t = y - half_h,
-      b = y + half_h,
-    }
-  else
-    return bbox
-  end
-end
-
--- Compute the bounding box for a camera's view.
+-- Compute the bounding box for a camera's view, excluding the margins.
 function camera_bbox(camera)
-  local f = 2 * camera.zoom * tile_size_px
+  local f = 2 * camera.zoom * tile_size_px * margin_expansion_factor
   return {
     l = camera.position.x - resolution.x / f,
     r = camera.position.x + resolution.x / f,
@@ -345,7 +326,7 @@ function run()
           zoom = bbox_target_camera.zoom,
           desired_zoom = current_camera.zoom,
         },
-        marginize_bbox(recent_bbox)
+        recent_bbox
       )
     end
 
