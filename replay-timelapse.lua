@@ -3,13 +3,11 @@ local resolution = {x = 1920, y = 1080}  -- Output image resolution (1080p)
 --local resolution = {x = 3840, y = 2160}  -- Output image resolution (4k)
 local framerate = 30                     -- Timelapse frames per second
 local speedup = 300                      -- Game seconds per timelapse second
-local capture_gui = false                -- If true, also save screenshots with GUI
 local watch_rocket_launch = false        -- If true, slow down to real time and zoom in on rocket launches
 
 local output_dir = "replay-timelapse"    -- Output directory (relative to Factorio script output directory)
 local screenshot_filename_pattern = output_dir .. "/%08d-base.png"
 local rocket_screenshot_filename_pattern = output_dir .. "/%08d-rocket.png"
-local gui_screenshot_filename_pattern = output_dir .. "/%08d-gui.png"
 local research_progress_filename = output_dir .. "/research-progress.csv"
 local research_finished_filename = output_dir .. "/research-finish.csv"
 
@@ -313,21 +311,6 @@ function run()
       anti_alias = true,
       force_render = true,
     }
-
-    if capture_gui then
-      game.take_screenshot{
-        surface = game.surfaces[1],
-        position = {0, 0},
-        zoom = 1,
-        path = string.format(gui_screenshot_filename_pattern, frame_num),
-        show_entity_info = true,
-        daytime = 0,
-        allow_in_replay = true,
-        show_gui = true,
-        anti_alias = true,
-        force_render = true,
-      }
-    end
 
     local force = game.players[1].force
     if force.current_research then
