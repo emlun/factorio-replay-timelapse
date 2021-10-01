@@ -22,7 +22,7 @@ local shrink_abort_transition_s = 1      -- Seconds of smooth transition after a
 local recently_built_seconds = 2         -- When at minimum zoom, track buildings built in the last this many seconds
 local base_bbox_lerp_step = 0.35         -- Exponential approach factor for base boundary tracking
 local camera_lerp_step = 0.35            -- Exponential approach factor for camera movement
-local camera_rocket_lerp_step = 0.15     -- Exponential approach factor for camera movement when zooming in on rocket silo
+local camera_rocket_lerp_step = 0.05     -- Exponential approach factor for camera movement when zooming in on rocket silo
 
 
 -- Game constants
