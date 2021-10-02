@@ -60,6 +60,14 @@ This seems to strike a reasonable balance between keeping things big enough to s
 not moving the camera too much, and covering the most relevant area at any given time.
 
 
+## Research timelapse
+
+The timelapse recorder also writes research progress
+to `research-progress.csv` and `research-finish.csv`.
+The [research-timelapse/](./research-timelapse) subdirectory contains tools
+for using these files to generate a research status window for the timelapse.
+
+
 ## Credits
 
 This was heavily inspired by [this gist by Bilka][bilka] and the mod [Time Lapse Base Edition][tlbe].
