@@ -236,8 +236,6 @@ function pan_camera_to_cover_bbox(camera, bbox)
       end
     end
 
-    cbb = camera_bbox(camera)
-
     if camera_h < bbox_h then
       if cbb.t < bbox.t then
         camera = translate_camera(camera, { x = 0, y = bbox.t - cbb.t })
