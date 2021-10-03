@@ -3,6 +3,11 @@
 This script can be attached to an existing replay save file to generate a timelapse by running the replay.
 This does not register as installing a mod, and so does not invalidate the replay.
 
+Importantly this also means you can do this with existing saves,
+and you can re-run the recorder any number of times while tweaking the settings to your liking,
+so you don't need to know up front what frame rate, resolution, zoom limits, etc., you want.
+And of course, it doesn't count as a mod for the purposes of achievements or the like.
+
 ![Demo of timelapse behaviour](demo.gif)
 
 The only editing added to the above gif is the fades between cuts.
