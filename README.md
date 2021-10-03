@@ -12,6 +12,8 @@ And of course, it doesn't count as a mod for the purposes of achievements or the
 
 The only editing added to the above gif is the fades between cuts.
 
+Full length example, lightly edited: https://www.youtube.com/watch?v=r0UNzrjfYkE
+
 
 ## Usage
 
