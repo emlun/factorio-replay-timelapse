@@ -1,5 +1,7 @@
 # Factorio replay timelapse recorder
 
+Make timelapses from your replay saves!
+
 This script can be attached to an existing replay save file to generate a timelapse by running the replay.
 This does not register as installing a mod, and so does not invalidate the replay.
 
