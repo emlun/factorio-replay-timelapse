@@ -29,7 +29,7 @@ To use this tool:
     For example, copy it to `MyBeautifulBase/replay-timelapse.lua`.
 
  4. (Optional) At the top of `MyBeautifulBase/replay-timelapse.lua`,
-    tweak the output paths and/or user parameters as needed.
+    tweak the output paths and/or program parameters as needed.
     See the comments in the file for descriptions.
 
     The default settings generate screenshots at 1080p, 30 FPS and x300 speedup
