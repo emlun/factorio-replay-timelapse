@@ -44,31 +44,18 @@ with open(FRAMES_FILE, 'r') as f:
         if row['state'] == 'current':
             current_research = row['research_name']
 
-            p = math.floor(float(row['research_progress']) * 100)
-            proc = subprocess.run([
+        if current_research is not None:
+            p = math.floor(float(row['research_progress'] or '1') * 100)
+            subprocess.run([
                 'magick',
-                os.path.join(RESEARCH_IMG_DIR, row['research_name'] + '.png'),
+                os.path.join(RESEARCH_IMG_DIR, current_research + '.png'),
                 '(',
                 os.path.join(PROGRESS_IMG_DIR, f"progress-{p:03d}.png"),
                 '-geometry', '+77+53',
                 ')',
                 '-composite',
                 frame_filename,
-            ])
-            proc.check_returncode()
-
-        elif current_research is not None:
-            proc = subprocess.run([
-                'magick',
-                os.path.join(RESEARCH_IMG_DIR, current_research + '.png'),
-                '(',
-                os.path.join(PROGRESS_IMG_DIR, 'progress-100.png'),
-                '-geometry', '+77+53',
-                ')',
-                '-composite',
-                frame_filename,
-            ])
-            proc.check_returncode()
+            ]).check_returncode()
 
         else:
             shutil.copyfile(
