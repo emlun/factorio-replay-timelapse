@@ -30,6 +30,8 @@ These steps only need to be performed once, unless you install mods that add or 
 
  2. Start Factorio and start a new game of the `research-timelapse-resource-gen` scenario.
     The scenario will run for about 2 minutes and then automatically finish.
+    The last screenshot (`progress-1000.png`) doesn't always reliably capture a frame
+    without the orange highlight, so you might need to run it multiple times until you get one.
 
  3. Run the [`crop-technology-screenshots.sh`](./crop-technology-screenshots.sh) script:
 
