@@ -3,6 +3,10 @@
 This script can be attached to an existing replay save file to generate a timelapse by running the replay.
 This does not register as installing a mod, and so does not invalidate the replay.
 
+![Demo of timelapse behaviour](demo.gif)
+
+The only editing added to the above gif is the fades between cuts.
+
 
 ## Usage
 
