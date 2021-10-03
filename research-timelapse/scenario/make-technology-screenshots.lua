@@ -84,7 +84,7 @@ function record_progress(and_then)
       count_100 = count_100 + 1
 
       if count_100 == 25 then
-        game.take_screenshot{path = "research-timelapse/progress-bar/progress-100.png", show_gui=true, force_render=true}
+        game.take_screenshot{path = "research-timelapse/progress-bar/progress-1000.png", show_gui=true, force_render=true}
         game.print("Done recording progress!")
         script.on_event(defines.events.on_tick, nil)
         if and_then then
@@ -95,15 +95,15 @@ function record_progress(and_then)
 
     local record = function (event)
       if force.current_research then
-        local p = math.floor(force.research_progress * 100)
+        local p = math.floor(force.research_progress * 1000)
         if take_next_screenshot then
-          game.take_screenshot{path = string.format("research-timelapse/progress-bar/progress-%03d.png", p), show_gui=true, force_render=true}
+          game.take_screenshot{path = string.format("research-timelapse/progress-bar/progress-%04d.png", p), show_gui=true, force_render=true}
           take_next_screenshot = false
           last_p = p
         elseif p ~= last_p then
           take_next_screenshot = true
         else
-          force.research_progress = math.min(1, force.research_progress + 0.004)
+          force.research_progress = math.min(1, force.research_progress + 0.0004)
         end
 
       else

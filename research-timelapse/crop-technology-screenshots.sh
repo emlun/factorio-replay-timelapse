@@ -20,7 +20,7 @@ crop_technologies() {
 }
 
 crop_progress() {
-  for f in "${IMG_DIR}/progress-bar"/progress-???.png; do
+  for f in "${IMG_DIR}/progress-bar"/progress-????.png; do
     fn=$(basename "$f")
     output_file="${OUTPUT_DIR}/progress-bar/${fn%.png}.png"
     echo "$output_file"
@@ -29,7 +29,7 @@ crop_progress() {
 }
 
 make_none_technology() {
-  f="${IMG_DIR}/progress-bar/progress-000.png"
+  f="${IMG_DIR}/progress-bar/progress-0000.png"
   fn=$(basename "$f")
   output_file="${OUTPUT_DIR}/technology/none.png"
   echo "$output_file"

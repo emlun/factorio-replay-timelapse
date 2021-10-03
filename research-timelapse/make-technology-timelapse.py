@@ -45,12 +45,12 @@ with open(FRAMES_FILE, 'r') as f:
             current_research = row['research_name']
 
         if current_research is not None:
-            p = math.floor(float(row['research_progress'] or '1') * 100)
+            p = math.floor(float(row['research_progress'] or '1') * 1000)
             subprocess.run([
                 'magick',
                 os.path.join(RESEARCH_IMG_DIR, current_research + '.png'),
                 '(',
-                os.path.join(PROGRESS_IMG_DIR, f"progress-{p:03d}.png"),
+                os.path.join(PROGRESS_IMG_DIR, f"progress-{p:04d}.png"),
                 '-geometry', '+77+53',
                 ')',
                 '-composite',
