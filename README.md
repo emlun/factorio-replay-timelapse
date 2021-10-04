@@ -38,7 +38,7 @@ To use this tool:
 
     The default settings generate screenshots at 1080p, 30 FPS and x300 speedup
     (5 in-game minutes per second of timelapse),
-    saving them into `.script-output/replay-timelapse/` in the [Factorio application directory][appdir].
+    saving them into `script-output/replay-timelapse/` in the [Factorio application directory][appdir].
 
  5. Launch the game, load the extracted directory - for example, `MyBeautifulBase/` - as a save file,
     and run the replay to completion.
