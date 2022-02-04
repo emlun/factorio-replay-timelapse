@@ -355,7 +355,15 @@ function run()
     then
       last_expansion = event.tick
       last_expansion_bbox = expanded_bbox
-      if shrink_start_tick ~= nil then
+    end
+
+    if shrink_end_camera ~= nil and shrink_abort_tick == nil then
+      local shrink_end_camera_bbox = camera_bbox(shrink_end_camera)
+      if (base_bb.l < shrink_end_camera_bbox.l)
+        or (base_bb.r > shrink_end_camera_bbox.r)
+        or (base_bb.t < shrink_end_camera_bbox.t)
+        or (base_bb.b > shrink_end_camera_bbox.b)
+      then
         shrink_abort_tick = event.tick
       end
     end
@@ -399,7 +407,7 @@ function run()
     local shrink_target_camera = nil
     if shrink_start_tick ~= nil then
       local shrink_tick = event.tick - shrink_start_tick
-      if shrink_tick > shrink_time_ticks
+      if (shrink_abort_tick == nil and shrink_tick > shrink_time_ticks)
         or (shrink_abort_tick ~= nil and event.tick - shrink_abort_tick >= shrink_abort_recovery_ticks)
       then
         shrink_start_tick = nil
