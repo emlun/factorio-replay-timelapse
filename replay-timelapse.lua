@@ -287,6 +287,7 @@ function run()
   local shrink_start_camera = nil
   local shrink_end_camera = nil
   local shrink_abort_tick = nil
+  local shrink_abort_camera = nil
   local frame_num = 0
   local watching_rocket_silo = nil
   local rocket_start_tick = nil
@@ -365,6 +366,7 @@ function run()
         or (base_bb.b > shrink_end_camera_bbox.b)
       then
         shrink_abort_tick = event.tick
+        shrink_abort_camera = current_camera
       end
     end
 
@@ -385,6 +387,7 @@ function run()
         shrink_start_camera = current_camera
         shrink_end_camera = compute_camera(target_bbox)
         shrink_abort_tick = nil
+        shrink_abort_camera = nil
         bbox = base_bb
       end
     else
@@ -414,6 +417,7 @@ function run()
         shrink_start_camera = nil
         shrink_end_camera = nil
         shrink_abort_tick = nil
+        shrink_abort_camera = nil
         shrinking_w = false
         shrinking_h = false
       else
@@ -426,11 +430,11 @@ function run()
     end
 
     local target_camera = bbox_target_camera
-    if shrink_target_camera ~= nil and shrink_abort_tick ~= nil then
+    if shrink_abort_tick ~= nil and shrink_abort_camera ~= nil then
       target_camera = lerp_camera(
-        shrink_target_camera,
+        shrink_abort_camera,
         bbox_target_camera,
-        sirp(math.min(1, (event.tick - shrink_abort_tick) / shrink_abort_recovery_ticks))
+        (event.tick - shrink_abort_tick) / shrink_abort_recovery_ticks
       )
     elseif shrink_target_camera ~= nil then
       target_camera = shrink_target_camera
