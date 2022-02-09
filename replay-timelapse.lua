@@ -64,7 +64,7 @@ function expand_bbox(bbox_a, bbox_b)
 end
 
 -- Linearly interpolate between two bounding boxes.
--- t: Interpolation factor in the interval [0, 1]
+-- t: Interpolation parameter in the interval [0, 1]
 function lerp_bbox(bbox_a, bbox_b, t)
   local s = 1 - t
   return {
@@ -76,7 +76,7 @@ function lerp_bbox(bbox_a, bbox_b, t)
 end
 
 -- Linearly interpolate only the x axis between two bounding boxes.
--- t: Interpolation factor in the interval [0, 1]
+-- t: Interpolation parameter in the interval [0, 1]
 function lerp_bbox_x(bbox_a, bbox_b, t)
   local s = 1 - t
   return {
@@ -88,7 +88,7 @@ function lerp_bbox_x(bbox_a, bbox_b, t)
 end
 
 -- Linearly interpolate only the y axis between two bounding boxes.
--- t: Interpolation factor in the interval [0, 1]
+-- t: Interpolation parameter in the interval [0, 1]
 function lerp_bbox_y(bbox_a, bbox_b, t)
   local s = 1 - t
   return {
@@ -100,12 +100,12 @@ function lerp_bbox_y(bbox_a, bbox_b, t)
 end
 
 -- Linear interpolation between two numbers
--- t: Interpolation factor in the interval [0, 1]
+-- t: Interpolation parameter in the interval [0, 1]
 function lerp(a, b, t)
   return (1 - t) * a + t * b
 end
 
--- Sinusoidal interpolation between two numbers
+-- Sinusoidal interpolation between 0 and 1
 -- t: Interpolation parameter in the interval [0, 1]
 function sirp(t)
   return (math.sin((t - 0.5) * math.pi) + 1) / 2
