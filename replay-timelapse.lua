@@ -285,7 +285,6 @@ function run()
   local recently_built_bboxes = {{}, {}, {}}
   local shrink_start_tick = nil
   local shrink_start_camera = nil
-  local shrink_end_camera = nil
   local shrink_abort_tick = nil
   local shrink_abort_camera = nil
   local frame_num = 0
@@ -358,7 +357,7 @@ function run()
       last_expansion_bbox = expanded_bbox
     end
 
-    if shrink_end_camera ~= nil and shrink_abort_tick == nil then
+    if shrink_start_tick ~= nil and shrink_abort_tick == nil then
       local current_camera_bbox = camera_bbox(current_camera)
       if (base_bb.l < current_camera_bbox.l)
         or (base_bb.r > current_camera_bbox.r)
@@ -385,10 +384,11 @@ function run()
       if shrinking then
         shrink_start_tick = event.tick
         shrink_start_camera = current_camera
-        shrink_end_camera = compute_camera(target_bbox)
         shrink_abort_tick = nil
         shrink_abort_camera = nil
         bbox = base_bb
+        last_expansion = event.tick
+        last_expansion_bbox = bbox
       end
     else
       bbox = lerp_bbox(bbox, expanded_bbox, base_bbox_lerp_step)
@@ -415,7 +415,6 @@ function run()
       then
         shrink_start_tick = nil
         shrink_start_camera = nil
-        shrink_end_camera = nil
         shrink_abort_tick = nil
         shrink_abort_camera = nil
         shrinking_w = false
@@ -423,7 +422,7 @@ function run()
       else
         shrink_target_camera = lerp_camera(
           shrink_start_camera,
-          shrink_end_camera,
+          bbox_target_camera,
           sirp(shrink_tick / shrink_time_ticks)
         )
       end
