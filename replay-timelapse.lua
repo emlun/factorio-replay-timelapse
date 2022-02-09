@@ -359,11 +359,11 @@ function run()
     end
 
     if shrink_end_camera ~= nil and shrink_abort_tick == nil then
-      local shrink_end_camera_bbox = camera_bbox(shrink_end_camera)
-      if (base_bb.l < shrink_end_camera_bbox.l)
-        or (base_bb.r > shrink_end_camera_bbox.r)
-        or (base_bb.t < shrink_end_camera_bbox.t)
-        or (base_bb.b > shrink_end_camera_bbox.b)
+      local current_camera_bbox = camera_bbox(current_camera)
+      if (base_bb.l < current_camera_bbox.l)
+        or (base_bb.r > current_camera_bbox.r)
+        or (base_bb.t < current_camera_bbox.t)
+        or (base_bb.b > current_camera_bbox.b)
       then
         shrink_abort_tick = event.tick
         shrink_abort_camera = current_camera
