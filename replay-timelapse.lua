@@ -14,6 +14,7 @@ local research_finished_filename = output_dir .. "/research-finish.csv"
 -- Camera movement parameters
 local min_zoom = 0.03125 * 4             -- Min zoom level (widest field of view)
 local max_zoom = 0.5                     -- Max zoom level (narrowest field of view)
+local rocket_min_zoom = min_zoom / 2     -- Min zoom level after zooming out from rocket launch
 local margin_fraction = 0.05             -- Fraction of screen to leave as margin on each edge
 local shrink_threshold = 0.75            -- Shrink base boundary when base width or height is less than this fraction of it
 local shrink_delay_s = 3                 -- Seconds to wait since last boundary expansion before shrinking base boundary
@@ -22,25 +23,37 @@ local shrink_abort_transition_s = 0.5    -- Seconds of smooth transition after a
 local recently_built_seconds = 2         -- When at minimum zoom, track buildings built in the last this many seconds
 local base_bbox_lerp_step = 0.35         -- Exponential approach factor for base boundary tracking
 local camera_lerp_step = 0.35            -- Exponential approach factor for camera movement
-local camera_rocket_lerp_step = 0.05     -- Exponential approach factor for camera movement when zooming in on rocket silo
+local camera_rocket_lerp_step = 0.05     -- Exponential approach factor for camera movement while zooming in on rocket silo
+local rocket_watch_delay_s = 1           -- Seconds to keep zooming out after rocket disappears
+local rocket_linger_s = 6                -- Seconds to linger after fully zooming out from rocket launch
+local linger_zoom_in_s = 30              -- Seconds to zoom in after lingering after rocket launch
+local linger_end_zoom = min_zoom         -- Final zoom level after zooming in after lingering
+local linger_end_s = 10                  -- Seconds to wait at final zoom level after zooming back in
 
 
 -- Game constants
 local tick_per_s = 60
 local tile_size_px = 32
 local min_zoom_hard = 0.03125            -- Minimum zoom allowed by the game
-local rocket_launch_ticks = 1162
+local rocket_launch_ticks = 1163
 
 -- Derived parameters
 local resolution_correction = math.max(resolution.x / 1920, resolution.y / 1080)
 min_zoom = math.max(min_zoom_hard, min_zoom * resolution_correction)
 max_zoom = max_zoom * resolution_correction
+linger_end_zoom = math.max(min_zoom_hard, linger_end_zoom * resolution_correction)
 local nth_tick = tick_per_s * speedup / framerate
 local recently_built_ticks = recently_built_seconds * tick_per_s * speedup
 local margin_expansion_factor = 1 + (2 * margin_fraction)
 local shrink_delay_ticks = shrink_delay_s * tick_per_s * speedup
 local shrink_time_ticks = shrink_time_s * tick_per_s * speedup
 local shrink_abort_recovery_ticks = shrink_abort_transition_s * tick_per_s * speedup
+local rocket_watch_delay_ticks = tick_per_s * rocket_watch_delay_s
+local rocket_linger_ticks = rocket_launch_ticks + tick_per_s * (rocket_watch_delay_s + rocket_linger_s)
+local rocket_watch_ticks = rocket_launch_ticks + tick_per_s * (rocket_watch_delay_s + rocket_linger_s + linger_zoom_in_s + linger_end_s)
+local rocket_zoom_delay_ticks = rocket_launch_ticks * 0.4
+local rocket_zoom_out_ticks = rocket_launch_ticks - rocket_zoom_delay_ticks + rocket_watch_delay_ticks
+local linger_zoom_in_ticks = linger_zoom_in_s * tick_per_s
 
 
 -- Return the bounding box of an entity.
@@ -111,6 +124,49 @@ function sirp(t)
   return (math.sin((t - 0.5) * math.pi) + 1) / 2
 end
 
+
+-- Ease-in interpolation between 0 and 1
+-- t: Interpolation parameter in the interval [0, 1]
+-- f: Interpolation point where easing ends
+function ease_in(t, f)
+  local alpha = 1 / (1 + math.pi/2 * (1/f - 1))
+
+  if t <= f then
+      return alpha * (1 - math.cos(t / (f / (math.pi/2))))
+  else
+    return (1 - alpha) / (1 - f) * (t - f) + alpha;
+  end
+end
+
+
+-- Ease-out interpolation between 0 and 1
+-- t: Interpolation parameter in the interval [0, 1]
+-- f: Interpolation point from end where easing ends
+function ease_out(t, f)
+  return 1 - ease_in(1 - t, f)
+end
+
+
+-- Ease-in-out interpolation between 0 and 1
+-- t: Interpolation parameter in the interval [0, 1]
+-- f: Interpolation point from start and end where easing ends
+function ease_in_out(t, f)
+  if t < 0.5 then
+    return ease_in(t * 2, f * 2) / 2
+  else
+    return ease_out((t - 0.5) * 2, f * 2) / 2 + 0.5
+  end
+end
+
+
+-- Clamp number within a range
+-- t: Number to clamp
+-- t_min: Minimum value for t
+-- t_max: Maximum value for t
+function clamp(t, t_min, t_max)
+  return math.max(t_min, math.min(t_max, t))
+end
+
 -- Linear interpolation between two cameras
 -- t: Interpolation factor in the interval [0, 1]
 -- Position and zoom are interpolated, desired zoom is taken from camera_b.
@@ -172,17 +228,47 @@ function compute_camera(bbox)
 end
 
 -- Compute a camera view optimized for watching a rocket launch.
-function compute_rocket_camera(rocket_silo)
+function compute_rocket_camera(event, rocket_silo, rocket_launch_start_tick)
   local bbox = entity_bbox(rocket_silo)
   local h_tile = resolution.y / tile_size_px
   local center = {
     x = (bbox.l + bbox.r) / 2,
     y = (bbox.t + bbox.b) / 2 - h_tile / 4,
   }
+
+  local zoom = 1
+  if event.tick < rocket_launch_start_tick + rocket_linger_ticks then
+    zoom = lerp(
+      1,
+      rocket_min_zoom,
+      ease_in_out(
+        clamp(
+          (event.tick - (rocket_launch_start_tick + rocket_zoom_delay_ticks)) / rocket_zoom_out_ticks,
+          0,
+          1
+        ),
+        3 * tick_per_s / rocket_zoom_out_ticks
+      )
+    )
+  else
+    zoom = lerp(
+      rocket_min_zoom,
+      linger_end_zoom,
+      ease_in_out(
+        clamp(
+          (event.tick - (rocket_launch_start_tick + rocket_linger_ticks)) / linger_zoom_in_ticks,
+          0,
+          1
+        ),
+        2 / linger_zoom_in_s
+      )
+    )
+  end
+
   return {
     position = center,
-    zoom = 1,
-    desired_zoom = 1,
+    zoom = zoom,
+    desired_zoom = zoom,
   }
 end
 
@@ -290,6 +376,7 @@ function run()
   local frame_num = 0
   local watching_rocket_silo = nil
   local rocket_start_tick = nil
+  local rocket_smoothing_camera = nil
 
   function watch(tick)
     local filename_pattern = screenshot_filename_pattern
@@ -444,8 +531,13 @@ function run()
   end
 
   function watch_rocket(event)
-    local target_camera = compute_rocket_camera(watching_rocket_silo)
-    current_camera = lerp_camera(current_camera, target_camera, camera_rocket_lerp_step)
+    local target_camera = compute_rocket_camera(event, watching_rocket_silo, rocket_start_tick)
+    if event.tick < rocket_start_tick + rocket_zoom_delay_ticks then
+      rocket_smoothing_camera = lerp_camera(rocket_smoothing_camera or current_camera, target_camera, camera_rocket_lerp_step)
+      current_camera = lerp_camera(current_camera, rocket_smoothing_camera, camera_rocket_lerp_step)
+    else
+      current_camera = target_camera
+    end
     watch(event.tick)
   end
 
@@ -487,7 +579,7 @@ function run()
 
       if watching_rocket_silo then
         watch_rocket(event)
-        if event.tick - rocket_start_tick >= rocket_launch_ticks then
+        if event.tick - rocket_start_tick >= rocket_watch_ticks then
           watching_rocket_silo = nil
           script.on_nth_tick(nth_tick, watch_base)
         end
