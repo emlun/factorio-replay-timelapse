@@ -1,7 +1,7 @@
 -- Output settings
 local resolution = {x = 1920, y = 1080}  -- Output image resolution (1080p)
 --local resolution = {x = 3840, y = 2160}  -- Output image resolution (4k)
-local framerate = 30                     -- Timelapse frames per second
+local framerate = 60                     -- Timelapse frames per second
 local speedup = 300                      -- Game seconds per timelapse second
 local watch_rocket_launch = false        -- If true, slow down to real time and zoom in on rocket launches
 
@@ -54,6 +54,17 @@ local rocket_watch_ticks = rocket_launch_ticks + tick_per_s * (rocket_watch_dela
 local rocket_zoom_delay_ticks = rocket_launch_ticks * 0.4
 local rocket_zoom_out_ticks = rocket_launch_ticks - rocket_zoom_delay_ticks + rocket_watch_delay_ticks
 local linger_zoom_in_ticks = linger_zoom_in_s * tick_per_s
+
+
+function adjust_lerp_step_from_30fps_to_60fps(lerp_step)
+  return 1 - math.sqrt(1 - lerp_step)
+end
+
+if framerate == 60 then
+  base_bbox_lerp_step = adjust_lerp_step_from_30fps_to_60fps(base_bbox_lerp_step)
+  camera_lerp_step = adjust_lerp_step_from_30fps_to_60fps(camera_lerp_step)
+  camera_rocket_lerp_step = adjust_lerp_step_from_30fps_to_60fps(camera_rocket_lerp_step)
+end
 
 
 -- Return the bounding box of an entity.
