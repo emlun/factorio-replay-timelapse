@@ -3,7 +3,7 @@ local resolution = {x = 1920, y = 1080}  -- Output image resolution (1080p)
 --local resolution = {x = 3840, y = 2160}  -- Output image resolution (4k)
 local framerate = 60                     -- Timelapse frames per second
 local speedup = 300                      -- Game seconds per timelapse second
-local watch_rocket_launch = false        -- If true, slow down to real time and zoom in on rocket launches
+local watch_rocket_launch = false        -- If true, slow down to real time and zoom in on first rocket launch
 
 local output_dir = "replay-timelapse"    -- Output directory (relative to Factorio script output directory)
 local screenshot_filename_pattern = output_dir .. "/%08d-base.png"
@@ -592,7 +592,6 @@ function run()
         watch_rocket(event)
         if event.tick - rocket_start_tick >= rocket_watch_ticks then
           watching_rocket_silo = nil
-          script.on_nth_tick(nth_tick, watch_base)
         end
       end
     end
