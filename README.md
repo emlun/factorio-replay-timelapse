@@ -51,7 +51,7 @@ With the default settings (1080p @ 30 FPS, x300 speed),
 screenshots consume about 9 GiB per timelapse minute or about 2 GiB per in-game hour.
 
 Once finished, you can use [FFmpeg][ffmpeg] with the `image2` demuxer to assemble the screenshots into a video file.
-See the [`assemble-timelapse-video.sh`](./assemble-timelapse-video.sh) script for an example.
+See the [`assemble-timelapse-videos.sh`](./assemble-timelapse-videos.sh) script for an example.
 
 
 ## Camera movement strategy
