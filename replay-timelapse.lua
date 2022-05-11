@@ -598,18 +598,44 @@ function run()
     end
   )
 
-  if watch_rocket_launch then
-    script.on_event(
-      defines.events.on_rocket_launch_ordered,
-      function (event)
-        if watching_rocket_silo == nil then
-          script.on_nth_tick(nil)
-          rocket_start_tick = event.tick
-          watching_rocket_silo = event.rocket_silo
-        end
+  script.on_event(
+    defines.events.on_rocket_launched,
+    function (event)
+      game.write_file(
+        events_filename,
+        string.format(
+          "%s,%s,%s,%s\n",
+          event.tick,
+          frame_num,
+          frame_to_timestamp(frame_num),
+          "rocket-launched"
+        ),
+        true
+      )
+    end
+  )
+
+  script.on_event(
+    defines.events.on_rocket_launch_ordered,
+    function (event)
+      game.write_file(
+        events_filename,
+        string.format(
+          "%s,%s,%s,%s\n",
+          event.tick,
+          frame_num,
+          frame_to_timestamp(frame_num),
+          "rocket-launch-ordered"
+        ),
+        true
+      )
+      if watch_rocket_launch and (watching_rocket_silo == nil) then
+        script.on_nth_tick(nil)
+        rocket_start_tick = event.tick
+        watching_rocket_silo = event.rocket_silo
       end
-    )
-  end
+    end
+  )
 end
 
 return {
