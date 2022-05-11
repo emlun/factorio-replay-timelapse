@@ -22,10 +22,13 @@ if len(sys.argv) < 2 or FRAMES_FILE == "":
     print_usage()
 
 
-OUTPUT_DIR = "research-frames"
+OUTPUT_BASEDIR = os.path.join("..", "output")
+OUTPUT_FRAMES_DIR = os.path.join(OUTPUT_BASEDIR, "research-frames")
+OUTPUT_VIDEO_FILENAME = os.path.join(OUTPUT_BASEDIR, "research-timelapse.mkv")
 OUTPUT_IMG_PATTERN = '%08d-research.png'
 
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+os.makedirs(OUTPUT_BASEDIR, exist_ok=True)
+os.makedirs(OUTPUT_FRAMES_DIR, exist_ok=True)
 
 current_research = None
 
@@ -37,7 +40,7 @@ with open(FRAMES_FILE, 'r') as f:
 
         frame_num = int(row['frame'])
         frame_filename = os.path.join(
-            OUTPUT_DIR,
+            OUTPUT_FRAMES_DIR,
             OUTPUT_IMG_PATTERN % (frame_num),
         )
 
@@ -67,7 +70,7 @@ subprocess.run([
     'ffmpeg', '-y',
     '-f', 'image2',
     '-framerate', '30',
-    '-i', os.path.join(OUTPUT_DIR, OUTPUT_IMG_PATTERN),
+    '-i', os.path.join(OUTPUT_FRAMES_DIR, OUTPUT_IMG_PATTERN),
     '-c:v', 'libx265',
-    os.path.join(OUTPUT_DIR, 'research-timelapse.mkv')
+    OUTPUT_VIDEO_FILENAME
 ])

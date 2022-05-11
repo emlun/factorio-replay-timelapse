@@ -49,8 +49,8 @@ These steps only need to be performed once, unless you install mods that add or 
     $ python make-technology-timelapse.py ~/.factorio/script-output/replay-timelapse/research-progress.csv
     ```
 
-    This will write timelapse frames to `research-frames/*.png` and then compile them
-    into a video written to `research-frames/research-timelapse.mkv`.
+    This will write timelapse frames to `../output/research-frames/*.png` and then compile them
+    into a video written to `../output/research-timelapse.mkv`.
 
 
 [ffmpeg]: https://www.ffmpeg.org/
