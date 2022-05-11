@@ -10,7 +10,7 @@ ROCKET_IMG_PATTERN="%08d-rocket.png"
 ROCKET_IMG_GLOB="*-rocket.png"
 
 IMG_DIR="${1%%/}"
-OUTPUT_DIR="${2:-.}"
+OUTPUT_DIR="${2:-output}"
 OUTPUT_DIR="${OUTPUT_DIR%%/}"
 
 print_usage() {
@@ -23,7 +23,7 @@ Assemble screenshot files in <INPUT_DIR> into video files.
 *-rocket.png files in INPUT_DIR will be assembled into OUTPUT_DIR/timelapse-rocket.mkv .
 Frame rates can be configured individually for each video by modifying the script source.
 
-OUTPUT_DIR defaults to the current directory.
+OUTPUT_DIR defaults to "output/".
 EOF
   exit 1
 }
@@ -33,6 +33,8 @@ if [[ -z "${IMG_DIR}" ]]; then
 fi
 
 ROCKET_FRAME_OFFSET=$(basename $(find "${IMG_DIR}" -type f -name "${ROCKET_IMG_GLOB}" | head -n 1) | cut -d '-' -f 1)
+
+mkdir -p "${OUTPUT_DIR}"
 
 ffmpeg -f image2 \
        -framerate "${BASE_FRAME_RATE}" \
