@@ -9,7 +9,7 @@ local output_dir = "replay-timelapse"    -- Output directory (relative to Factor
 local screenshot_filename_pattern = output_dir .. "/%08d-base.png"
 local rocket_screenshot_filename_pattern = output_dir .. "/%08d-rocket.png"
 local research_progress_filename = output_dir .. "/research-progress.csv"
-local research_finished_filename = output_dir .. "/research-finish.csv"
+local events_filename = output_dir .. "/events.csv"
 
 -- Camera movement parameters
 local min_zoom = 0.03125 * 4             -- Min zoom level (widest field of view)
@@ -363,8 +363,8 @@ end
 -- Write CSV headers to the research progress files.
 function init_research_csv()
   game.write_file(
-    research_finished_filename,
-    string.format("%s,%s,%s,%s,%s\n", "tick", "frame", "timestamp", "research_name", "research_localised_name"),
+    events_filename,
+    string.format("%s,%s,%s,%s\n", "tick", "frame", "timestamp", "event"),
     false
   )
   game.write_file(
@@ -558,18 +558,19 @@ function run()
     defines.events.on_research_finished,
     function (event)
       game.write_file(
-        research_finished_filename,
+        events_filename,
         string.format(
-          "%s,%s,%s,%s,",
+          "%s,%s,%s,%s,%s,",
           event.tick,
           frame_num,
           frame_to_timestamp(frame_num),
+          "research-finished",
           event.research.name
         ),
         true
       )
-      game.write_file(research_finished_filename, event.research.localised_name, true)
-      game.write_file(research_finished_filename, "\n", true)
+      game.write_file(events_filename, event.research.localised_name, true)
+      game.write_file(events_filename, "\n", true)
     end
   )
 
